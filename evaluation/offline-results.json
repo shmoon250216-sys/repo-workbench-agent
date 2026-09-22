@@ -1,0 +1,125 @@
+{
+  "mode": "offline_scripted_integration",
+  "model": null,
+  "scope": "预设工具调用和补丁；验证执行、审核、恢复和验收机制，不衡量真实模型修复能力",
+  "dataset_sha256": "1d2c3eddb5401fd93f9e71db84e9f94220121eb03fb9b5fcf22278b2460e0696",
+  "total": 8,
+  "passed": 8,
+  "results": [
+    {
+      "id": "RW-001",
+      "category": "bug-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-002",
+      "category": "boundary-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-003",
+      "category": "feature",
+      "passed": true,
+      "steps": 6,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-004",
+      "category": "feature",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-005",
+      "category": "boundary-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-006",
+      "category": "refactor",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-007",
+      "category": "approval-denied",
+      "passed": true,
+      "steps": 6,
+      "verification": "not_run",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit"
+      ]
+    },
+    {
+      "id": "RW-008",
+      "category": "repository-understanding",
+      "passed": true,
+      "steps": 4,
+      "verification": "not_run",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file"
+      ]
+    }
+  ]
+}

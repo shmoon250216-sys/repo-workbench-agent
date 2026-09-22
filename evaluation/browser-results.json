@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "login",
+    "create",
+    "tool_loop",
+    "edit_review",
+    "test_approval",
+    "real_fixture_tests",
+    "reload_session",
+    "mobile_no_overflow"
+  ],
+  "pageErrors": [],
+  "passed": true
+}
