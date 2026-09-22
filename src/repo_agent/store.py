@@ -77,12 +77,13 @@ class Store:
                 (sid, kind, json.dumps(data, ensure_ascii=False), time.time()),
             )
 
-    def events(self, sid):
+    def events(self, sid, after=0, limit=100000):
         with self.lock:
             return [
                 dict(r, data=json.loads(r["data"]))
                 for r in self.db.execute(
-                    "SELECT * FROM events WHERE session=? ORDER BY id", (sid,)
+                    "SELECT * FROM events WHERE session=? AND id>? ORDER BY id LIMIT ?",
+                    (sid, after, limit),
                 )
             ]
 

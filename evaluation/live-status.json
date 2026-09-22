@@ -1,5 +1,10 @@
 {
-  "status": "not_run",
-  "reason": "User will configure model API locally later",
-  "model": null
+  "status": "limited_smoke_passed",
+  "model": "deepseek-flash",
+  "checks": [
+    "synthetic_addition_fix_two_tests",
+    "same_session_followup",
+    "streaming_read_only_task"
+  ],
+  "scope": "小样例接入验收；复杂任务成功率、长上下文和 Docker 实机仍待验证"
 }

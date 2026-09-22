@@ -192,7 +192,37 @@ class Engine:
                         "omitted_groups": cut,
                     },
                 )
-                msg, usage = self.provider.complete(context, tools.schemas())
+                step = s["steps"] + 1
+                self.store.event(sid, "model_start", {"step": step})
+                if hasattr(self.provider, "complete_stream"):
+                    pending = []
+                    last_emit = time.monotonic()
+
+                    def flush_delta(piece="", force=False):
+                        nonlocal last_emit
+                        pending.append(piece)
+                        if (
+                            force
+                            or sum(map(len, pending)) >= 80
+                            or time.monotonic() - last_emit > 0.12
+                        ):
+                            chunk = "".join(pending)
+                            pending.clear()
+                            if chunk:
+                                self.store.event(
+                                    sid, "model_delta", {"step": step, "text": chunk}
+                                )
+                            last_emit = time.monotonic()
+
+                    try:
+                        msg, usage = self.provider.complete_stream(
+                            context, tools.schemas(), flush_delta
+                        )
+                    finally:
+                        flush_delta(force=True)
+                else:
+                    msg, usage = self.provider.complete(context, tools.schemas())
+                self.store.event(sid, "model_end", {"step": step})
                 s["steps"] += 1
                 s["usage_tokens"] += int(usage.get("total_tokens", 0) or 0)
                 tc = msg.get("tool_calls") or []

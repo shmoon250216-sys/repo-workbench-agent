@@ -1,14 +1,19 @@
 {
+  "mode": "offline_delayed_stream_fixture",
   "checks": [
-    "login",
-    "create",
-    "tool_loop",
-    "edit_review",
-    "test_approval",
-    "real_fixture_tests",
-    "reload_session",
-    "mobile_no_overflow"
+    "login_screen",
+    "bad_password",
+    "cookie_login",
+    "live_text_before_completion",
+    "SSE_trace",
+    "edit_auto_resume",
+    "tests_auto_resume",
+    "reload_session_and_login",
+    "session_search",
+    "mobile_no_overflow",
+    "logout"
   ],
+  "firstDelta": "正在读取当前代码",
   "pageErrors": [],
   "passed": true
 }

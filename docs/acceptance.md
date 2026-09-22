@@ -3,15 +3,15 @@
 | 项目 | 结果 | 限制 |
 | --- | --- | --- |
 | Ruff | 通过 | 静态检查 |
-| unittest/API | 43 项：42 通过，1 跳过 | Windows 无创建符号链接权限；Ubuntu CI 可覆盖 |
+| unittest/API | 51 项：50 通过，1 跳过 | Windows 无创建符号链接权限；Ubuntu CI 可覆盖 |
 | 离线场景 | 8/8 通过 | 预设工具序列和补丁，不测模型能力 |
 | 实际执行 | 临时仓库修改及 unittest 子进程通过 | 只执行受控自建样例 |
-| 网页 | 创建、双重审批、测试、刷新恢复、移动端通过 | 本地单操作人 |
-| 真实模型 | 未运行 | 使用者稍后在本地配置 API |
+| 网页 | 登录、SSE 增量、双重审批自动继续、刷新恢复、搜索、移动端通过 | 本地单操作人 |
+| 真实模型 | DeepSeek 修复 + 追问 + 流式只读通过 | 小样例冒烟测试，不作泛化指标 |
 | Docker 实机 | 未运行 | 当前主机未安装 Docker |
 
 离线集包含缺陷修复、空输入边界、新增功能、分页边界、重构、审批拒绝和只读理解。数据为开发期自建合成案例，没有训练/测试隔离，不是 SWE-bench 或独立泛化测评。六个修改场景实际执行测试，其余场景验证拒绝后的文件不变和只读工具链；只读任务的自然语言解释没有评分。
 
-浏览器脚本需要 Node、Playwright 和 Edge/Chromium，以环境变量指定 `PLAYWRIGHT_MODULE`、`BROWSER_PATH`、`UI_TOKEN_FILE`，从仓库根目录运行 `node scripts/browser-smoke.cjs`。先在全新示例工作区启动 8022 端口的离线服务。公开报告不含访问凭据；截图保留本地用于排版检查，不提交个人机器路径。
+浏览器脚本需要 Node、Playwright 和 Edge/Chromium，以环境变量指定 `PLAYWRIGHT_MODULE`、`BROWSER_PATH`、`UI_TOKEN_FILE`，从仓库根目录运行 `node scripts/browser-smoke.cjs`。通过 `UI_URL` 指定服务地址（默认 8024），在全新示例工作区使用延迟流式测试 Provider；普通脚本 Provider 不产生模型文本增量。测试替身启动器见 `scripts/serve-browser-fixture.py`。公开报告不含访问凭据；截图保留本地用于排版检查，不提交个人机器路径。
 
 评测数据的 SHA-256 基于 UTF-8 文本归一化为 LF 后计算，避免 Git 跨平台 CRLF 转换改变同一数据集的记录。
