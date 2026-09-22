@@ -1,10 +1,11 @@
 import argparse
 import json
 from pathlib import Path
-from .store import Store
+
+from .demo import ScriptedDemo, create_fixture
 from .engine import Engine
 from .provider import ChatProvider
-from .demo import ScriptedDemo, create_fixture
+from .store import Store
 
 
 def main():
@@ -44,6 +45,7 @@ def main():
         return
     if a.command == "serve":
         import uvicorn
+
         from .api import create_app
 
         app = create_app(

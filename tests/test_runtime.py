@@ -1,12 +1,14 @@
 import io
 import json
 import os
-from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
 import urllib.error
+from pathlib import Path
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
+
 from repo_agent.api import create_app
 from repo_agent.context import assemble
 from repo_agent.demo import ScriptedDemo, create_fixture
@@ -14,7 +16,7 @@ from repo_agent.engine import Engine
 from repo_agent.policy import Denied
 from repo_agent.provider import ChatProvider, ProviderError
 from repo_agent.store import Store
-from repo_agent.tools import Tools, ApprovalNeeded
+from repo_agent.tools import ApprovalNeeded, Tools
 
 
 def call(name, args, cid="one"):

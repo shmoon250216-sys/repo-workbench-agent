@@ -1,16 +1,18 @@
-from pathlib import Path
 import difflib
 import hashlib
 import json
 import os
 import re
-import signal
 import shutil
+import signal
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
-from .policy import Policy, Denied
+
+from .policy import Denied, Policy
 
 
 class ApprovalNeeded(Exception):

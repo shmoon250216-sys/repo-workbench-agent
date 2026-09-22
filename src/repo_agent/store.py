@@ -1,9 +1,9 @@
-from pathlib import Path
 import json
 import sqlite3
 import threading
 import time
 import uuid
+from pathlib import Path
 
 
 class Store:

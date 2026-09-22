@@ -1,7 +1,7 @@
 """Filesystem checks are an application policy, not an OS sandbox."""
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 
 class Denied(ValueError):

@@ -1,4 +1,5 @@
 import json
+
 from .provider import ProviderError
 
 SYSTEM = """You are Repo Workbench, a local repository development assistant.
