@@ -124,6 +124,8 @@ def execute(case):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     dataset = ROOT / "evaluation/tasks.jsonl"
     cases = [json.loads(x) for x in dataset.read_text(encoding="utf-8").splitlines()]
     results = []
@@ -136,7 +138,9 @@ def main():
         mode="offline_scripted_integration",
         model=None,
         scope="预设工具调用和补丁；验证执行、审核、恢复和验收机制，不衡量真实模型修复能力",
-        dataset_sha256=hashlib.sha256(dataset.read_bytes()).hexdigest(),
+        dataset_sha256=hashlib.sha256(
+            dataset.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest(),
         total=len(results),
         passed=sum(x["passed"] for x in results),
         results=results,

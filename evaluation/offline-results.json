@@ -2,7 +2,7 @@
   "mode": "offline_scripted_integration",
   "model": null,
   "scope": "预设工具调用和补丁；验证执行、审核、恢复和验收机制，不衡量真实模型修复能力",
-  "dataset_sha256": "1d2c3eddb5401fd93f9e71db84e9f94220121eb03fb9b5fcf22278b2460e0696",
+  "dataset_sha256": "4b69ce4566174992e677734d231dd5cc3414a6a77a0d695c539b523a5305bc4c",
   "total": 8,
   "passed": 8,
   "results": [

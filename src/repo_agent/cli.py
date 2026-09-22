@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .demo import ScriptedDemo, create_fixture
@@ -9,6 +10,8 @@ from .store import Store
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(description="Repo Workbench: bounded coding agent")
     p.add_argument("--workspace", default=".")
     p.add_argument("--state", default=".runtime")
