@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+from .deliberation import Deliberation
 from .demo import ScriptedDemo, create_fixture
 from .engine import Engine
 from .provider import ChatProvider
@@ -29,6 +30,8 @@ def main():
     run = sub.add_parser("run")
     run.add_argument("task")
     run.add_argument("--max-steps", type=int, default=20)
+    run.add_argument("--agent-mode", choices=["react", "plan_execute"], default="react")
+    run.add_argument("--learning", action="store_true")
     resume = sub.add_parser("resume")
     resume.add_argument("session")
     follow = sub.add_parser("follow-up")
@@ -81,6 +84,8 @@ def main():
             a.task,
             a.max_steps,
             semantic_requirements=extractor is not None,
+            agent_mode=a.agent_mode,
+            learning_enabled=a.learning,
         )
     else:
         s = store.get(a.session)
@@ -91,6 +96,9 @@ def main():
         ScriptedDemo() if a.demo else ChatProvider(),
         backend=a.backend,
         extractor=extractor,
+        deliberator=None
+        if a.demo
+        else Deliberation(ChatProvider(timeout=15, attempts=1)),
     )
     if a.command == "follow-up":
         engine.follow_up(s["id"], a.task)

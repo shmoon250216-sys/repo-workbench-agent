@@ -12,6 +12,12 @@
 - 中途退出丢失工作：SQLAlchemy 支持 SQLite / MySQL，保存会话、独立消息历史、调用结果及审批；工具完成记录、消息和会话更新在同一事务提交，恢复时先处理未完成工具调用。
 - 模型声称完成不等于测试通过：单独记录代码 revision 和实际测试结果，修改后验证失效；未测试的修改明确标为 `completed_unverified`。
 
+## 新增：可选规划与任务复盘
+
+网页可选择 ReAct / Plan-and-Execute，并单独开启任务复盘与经验复用。复杂任务先生成带验收条件的步骤，执行过程中用真实工具证据更新进度；完成后生成有界复盘，经过测试证据门槛的经验才供同工作区后续任务参考。保留相同的审批边界，不是模型权重训练。
+
+实现、限制与复现方式见 [双模式与复盘设计](docs/planning-and-reflection.md)，真实模型对照见 [评测摘要](evaluation/planning-summary.md)。最新机制回归：143 项，142 通过、1 项 Windows 符号链接权限跳过（包含真实 MySQL）；8 个离线集成场景及网页回归通过。旧验收数字保留在对应历史报告。
+
 ## 快速运行
 
 Python 3.11+，建议在独立虚拟环境中安装：
@@ -63,7 +69,7 @@ ChatProvider → 工具参数校验 → 权限校验 → 执行 / 等待人工�
 | `execution.py` | 测试执行规格、工作区指纹及解释器/镜像身份 |
 | `requirements.py` | 可选模型需求提取、结构化校验、增量更正与缓存投影 |
 | `task_state.py` | 本轮目标、逐次用户原文及显式约束/验收条件，来源记录与容量限制 |
-| `tools.py` / `policy.py` | 11 个工具、Pydantic 参数契约、范围检查、审批及测试执行 |
+| `tools.py` / `policy.py` | 12 个工具、Pydantic 参数契约、范围检查、审批及测试执行 |
 | `store.py` / `schema.py` | SQLAlchemy 双后端、会话版本检查、短事务、独立消息和数据库产物 |
 | `migrations/` / `storage_migration.py` | Alembic 表结构版本、旧 SQLite 只读备份与一次性导入 |
 | `provider.py` | 可配置模型接口、超时与有限重试 |
@@ -75,7 +81,7 @@ ChatProvider → 工具参数校验 → 权限校验 → 执行 / 等待人工�
 
 ## 工具与技能
 
-11 个工具：`read_user_request`、`list_files`、`read_file`、`search_code`、`load_skill`、`propose_edit`、`apply_edit`、`run_tests`、`show_diff`、`save_notes`、`read_artifact`。
+12 个工具：`read_user_request`、`list_files`、`read_file`、`search_code`、`load_skill`、`propose_edit`、`apply_edit`、`run_tests`、`show_diff`、`save_notes`、`read_artifact`、`record_plan_progress`。
 
 4 类 Skills：仓库理解、功能开发、缺陷诊断、测试审查。系统提示只放技能名称与说明，正文通过工具加载。工具 schema 目前全部随模型请求发送，未实现工具 schema 动态搜索。
 

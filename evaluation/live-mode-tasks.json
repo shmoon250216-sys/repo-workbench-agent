@@ -1,0 +1,57 @@
+[
+  {
+    "id": "parser",
+    "task": "修复 parse_ids：逗号分隔整数，忽略首尾空格及空项，保持顺序和重复值。只改logic.py，不改测试或函数签名。运行测试。",
+    "code": "def parse_ids(text):\n    return [int(x) for x in text.split(\",\")]\n",
+    "checks": [
+      "assert m.parse_ids(\"1,2\") == [1,2]",
+      "assert m.parse_ids(\" ,1,, 2,\") == [1,2]"
+    ],
+    "hidden": [
+      "assert m.parse_ids(\"\") == []",
+      "assert m.parse_ids(\"-1,0,-1\") == [-1,0,-1]"
+    ]
+  },
+  {
+    "id": "pagination",
+    "task": "修复 paginate 并新增 page_info：page从1开始，size须为正整数，否则ValueError；paginate返回当前页列表，page_info返回字典items、total、has_next。超出页码返回空列表。只改logic.py，不改测试。分步核验两个函数并运行测试。",
+    "code": "def paginate(items, page, size):\n    return items[page*size:(page+1)*size]\n\ndef page_info(items, page, size):\n    return {}\n",
+    "checks": [
+      "assert m.paginate([1,2,3],1,2)==[1,2]",
+      "assert m.page_info([1,2,3],1,2)=={\"items\":[1,2],\"total\":3,\"has_next\":True}"
+    ],
+    "hidden": [
+      "assert m.page_info([],1,2)=={\"items\":[],\"total\":0,\"has_next\":False}",
+      "assert m.paginate([1],3,2)==[]",
+      "try:\n    m.paginate([1],0,2)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"invalid page\")"
+    ]
+  },
+  {
+    "id": "retry",
+    "task": "修复 should_retry 与 retry_delay：仅429、500、502、503、504可重试；attempt从0计数，仅attempt<max_attempts-1可重试。delay=min(cap,base*2**attempt)。负attempt及非正max_attempts应ValueError。只改logic.py，不改测试，运行测试。",
+    "code": "def should_retry(status, attempt, max_attempts):\n    return status >= 400\n\ndef retry_delay(attempt, base=1, cap=8):\n    return base\n",
+    "checks": [
+      "assert not m.should_retry(401,0,3)",
+      "assert m.should_retry(429,0,3)",
+      "assert m.retry_delay(3)==8"
+    ],
+    "hidden": [
+      "assert not m.should_retry(500,2,3)",
+      "assert not m.should_retry(501,0,3)",
+      "assert m.retry_delay(5,2,7)==7"
+    ]
+  },
+  {
+    "id": "inventory",
+    "task": "修复 merge_stock：按sku累加qty并保留首次出现顺序，不能修改输入。新增 available_skus 只返回合并后数量>0的sku。空输入返回空列表，允许负数量表示扣减。只改logic.py，不改测试，检查两个函数并运行测试。",
+    "code": "def merge_stock(rows):\n    return rows\n\ndef available_skus(rows):\n    return [r[\"sku\"] for r in rows]\n",
+    "checks": [
+      "assert m.merge_stock([{\"sku\":\"a\",\"qty\":1},{\"sku\":\"a\",\"qty\":2}])==[{\"sku\":\"a\",\"qty\":3}]",
+      "assert m.available_skus([{\"sku\":\"a\",\"qty\":0}])==[]"
+    ],
+    "hidden": [
+      "assert m.merge_stock([])==[]",
+      "x=[{\"sku\":\"b\",\"qty\":2},{\"sku\":\"a\",\"qty\":1},{\"sku\":\"b\",\"qty\":-3}]; assert m.available_skus(x)==[\"a\"]; assert x[0][\"qty\"]==2"
+    ]
+  }
+]

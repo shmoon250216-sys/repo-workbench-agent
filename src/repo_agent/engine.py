@@ -3,6 +3,7 @@ import threading
 import time
 
 from .context import assemble
+from .execution import workspace_snapshot
 from .provider import ProviderError
 from .store import StoreConflict
 from .task_state import protect_requirements
@@ -17,9 +18,10 @@ class Engine:
         *,
         backend="disabled",
         context_budget=18000,
-        max_tokens=50000,
+        max_tokens=100000,
         deadline=180,
         extractor=None,
+        deliberator=None,
     ):
         self.store = store
         self.provider = provider
@@ -28,6 +30,7 @@ class Engine:
         self.max_tokens = max_tokens
         self.deadline = deadline
         self.extractor = extractor
+        self.deliberator = deliberator
         self.locks = {}
         self.guard = threading.Lock()
         self.cancellations = {}
@@ -120,6 +123,17 @@ class Engine:
                 s["usage_tokens"] += report["usage_tokens"]
                 self.store.event(sid, "requirements", report)
             self.store.save(s)
+            if s.get("agent_mode") == "plan_execute" or s.get("learning_enabled"):
+                if not self.deliberator:
+                    raise ProviderError("Planning/learning model is not configured")
+                try:
+                    self.deliberator.prepare(s, self.store)
+                except Exception as exc:
+                    s["planning_error"] = type(exc).__name__
+                    raise ProviderError(
+                        "Plan preparation failed; retry explicitly"
+                    ) from None
+                self.store.save(s)
             while True:
                 if self.cancellations.get(sid, threading.Event()).is_set():
                     s["status"] = "stopped"
@@ -136,6 +150,11 @@ class Engine:
                     m.get("tool_call_id") for m in s["messages"] if m["role"] == "tool"
                 }
                 for call in calls:
+                    if self.cancellations.get(sid, threading.Event()).is_set():
+                        s["status"] = "stopped"
+                        s["final"] = "Stopped before starting the next tool."
+                        self.store.save(s)
+                        return s
                     cid = call["id"]
                     if cid in done:
                         continue
@@ -166,6 +185,10 @@ class Engine:
                                 "error": str(exc)[:500],
                                 "type": type(exc).__name__,
                             }
+                    result.setdefault(
+                        "_evidence_id",
+                        "e" + str(1 + sum(m["role"] == "tool" for m in s["messages"])),
+                    )
                     self.store.complete_call(s, cid, name, result)
                     if "error" in result:
                         signature = name + call["function"]["arguments"]
@@ -194,6 +217,8 @@ class Engine:
                         "Execution budget reached. Inspect changes before continuing."
                     )
                     break
+                if self.cancellations.get(sid, threading.Event()).is_set():
+                    continue
                 context, cut = assemble(s, tools.skills(), self.context_budget)
                 if cut:
                     s["compression_count"] += 1
@@ -275,6 +300,20 @@ class Engine:
                         raise ProviderError(
                             "Empty model response; session retained for retry"
                         )
+                    if s.get("verification") == "passed" and s.get(
+                        "verification_snapshot"
+                    ):
+                        try:
+                            unchanged = (
+                                workspace_snapshot(s["root"], self.store.directory)[
+                                    "sha256"
+                                ]
+                                == s["verification_snapshot"]
+                            )
+                        except Exception:
+                            unchanged = False
+                        if not unchanged:
+                            s["verification"] = "stale"
                     s["status"] = (
                         "completed"
                         if s["revision"] == 0
@@ -285,6 +324,26 @@ class Engine:
                         else "completed_unverified"
                     )
                     s["final"] = assistant["content"]
+                    if s.get("agent_mode") == "plan_execute" and any(
+                        x["status"] != "done"
+                        for x in s.get("plan", {}).get("steps", [])
+                    ):
+                        if s.get("plan_finish_retries", 0) < 2:
+                            s["plan_finish_retries"] = (
+                                s.get("plan_finish_retries", 0) + 1
+                            )
+                            self.store.event(
+                                sid,
+                                "plan_incomplete",
+                                {"retry": s["plan_finish_retries"]},
+                            )
+                            s["status"] = "running"
+                            self.store.save(s)
+                            continue
+                        s["status"] = "completed_unverified"
+                        s["final"] += (
+                            "\n[Plan incomplete: inspect unfinished steps before accepting.]"
+                        )
                     break
         except StoreConflict:
             # Never overwrite the winner using the stale in-memory session.
@@ -295,6 +354,21 @@ class Engine:
         except Exception as exc:
             s["status"] = "failed"
             s["final"] = "Runtime failure: " + type(exc).__name__
+        if (
+            self.deliberator
+            and s.get("learning_enabled")
+            and s["status"] in {"completed", "completed_unverified", "stopped"}
+        ):
+            if (
+                s["usage_tokens"] < self.max_tokens
+                and time.monotonic() - started < self.deadline
+            ):
+                try:
+                    self.deliberator.reflect(s, self.store)
+                except Exception as exc:
+                    s["reflection_error"] = type(exc).__name__
+            else:
+                s["reflection_error"] = "budget_exhausted"
         self.store.save(s)
         self.store.event(
             sid, "stopped", {"status": s["status"], "verification": s["verification"]}

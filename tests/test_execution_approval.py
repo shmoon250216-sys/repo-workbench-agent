@@ -52,6 +52,19 @@ class ExecutionApprovalTests(unittest.TestCase):
         self.assertEqual(aid, self.request())
         self.assertEqual(len(self.store.approvals(self.session["id"])), 1)
 
+    def test_changes_during_tests_invalidate_passing_exit_code(self):
+        self.approve()
+        root = self.root
+
+        class Changed(FakeProcess):
+            def wait(self, **kwargs):
+                (root / "code.py").write_text("value = 2\n")
+                return 0
+
+        with patch("repo_agent.tools.subprocess.Popen", side_effect=Changed):
+            result = self.tools.call("run_tests", {}, "call1")
+        self.assertEqual(result["status"], "stale")
+
     def test_exact_command_executes_once_and_consumes_approval(self):
         aid = self.approve()
         approved = self.store.approvals(self.session["id"])[0]["data"]

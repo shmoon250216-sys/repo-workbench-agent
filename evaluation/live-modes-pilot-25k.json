@@ -1,0 +1,317 @@
+{
+  "scope": "Real model, fixed synthetic tasks; held-out assertions outside editable workspace. One attempt per case/mode. Not production task success rate. Local execution, not sandbox.",
+  "dataset_sha256": "0223c9aa5036e55355010167f8ebf979aee8028413aaa2de63c68704c997ec58",
+  "results": [
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 25963,
+      "elapsed_seconds": 11.97,
+      "steps": 8,
+      "tool_errors": 0,
+      "plan": null,
+      "reflection": null,
+      "reflection_error": "budget_exhausted",
+      "approvals": 3,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "parser",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": false,
+      "workflow_completed": false,
+      "tokens": 25341,
+      "elapsed_seconds": 17.81,
+      "steps": 7,
+      "tool_errors": 5,
+      "plan": {
+        "request_hash": "e0187bd32d8c2970a6972bd2856e752a14862ecc5697d84a8d9731f0c2bee3a9",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Locate parse_ids in logic.py and read the existing tests covering it to confirm the expected input/output behavior and current failure.",
+            "acceptance": "Confirmed function signature and current implementation; identified relevant test expectations. No files edited yet."
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Edit only logic.py: split the input on commas, strip surrounding whitespace, drop empty items, convert remaining items to integers, and preserve original order and duplicates.",
+            "acceptance": "parse_ids behavior updated and its signature unchanged; no test files or other files modified."
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Run the repository's test suite (or the tests covering parse_ids) without modifying tests.",
+            "acceptance": "Tests execute successfully and all pass; any failures are reported with details."
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Inspect the working-tree diff/status to confirm only logic.py changed.",
+            "acceptance": "Diff/status shows logic.py as the sole modified file and no unintended changes."
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 0,
+      "verification": "not_run",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "pagination",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 25238,
+      "elapsed_seconds": 22.75,
+      "steps": 6,
+      "tool_errors": 0,
+      "plan": null,
+      "reflection": null,
+      "reflection_error": "budget_exhausted",
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "pagination",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": false,
+      "workflow_completed": false,
+      "tokens": 29526,
+      "elapsed_seconds": 23.39,
+      "steps": 7,
+      "tool_errors": 5,
+      "plan": {
+        "request_hash": "82148dde9e1976a521384b476532fdb734c8dfae690c1615d382cbe442ab446a",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查 logic.py 与相关测试，定位 paginate 现有实现、函数签名和测试调用方式，确认 page_info 是否已存在。",
+            "acceptance": "能明确记录 paginate 的签名与需保留的调用方式，并确认 page_info 当前状态；此步不修改任何文件。"
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "在 logic.py 中修复 paginate：按 page 从 1 开始返回当前页切片，size 非正整数时抛出 ValueError，页码超出范围时返回空列表。",
+            "acceptance": "paginate 对合法分页返回正确切片，size 非正整数抛 ValueError，超出页码返回 []；不修改测试文件。"
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "在 logic.py 中新增 page_info，返回包含 items、total、has_next 三个键的字典，items 使用 paginate 的当前页结果，has_next 根据是否还有下一页计算。",
+            "acceptance": "page_info 返回键名准确的字典；超出页码时 items 为空且 has_next 为 false；仅修改 logic.py。"
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "针对 paginate 和 page_info 运行定向核验，覆盖首页、中间页、超出页码、size 非正整数及 has_next 边界。",
+            "acceptance": "定向核验全部通过，两个函数行为符合需求；未修改测试文件或新增测试文件。"
+          },
+          {
+            "id": "p5",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "运行仓库完整测试套件，并检查变更范围。",
+            "acceptance": "完整测试通过；版本控制差异显示仅 logic.py 被修改，测试文件未被改动。"
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 0,
+      "verification": "not_run",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "retry",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 27436,
+      "elapsed_seconds": 19.08,
+      "steps": 7,
+      "tool_errors": 0,
+      "plan": null,
+      "reflection": {
+        "summary": "Fixed logic.py retry helpers: should_retry now only allows 429/500/502/503/504 and attempt < max_attempts-1, with ValueError for negative attempt or nonpositive max_attempts; retry_delay uses min(cap, base*2**attempt) and rejects negative attempt. The change was applied via approval and the supplied test run passed. No failing test result was observed in the supplied evidence; the initial code was noncompliant.",
+        "failure": "No failing test run was observed. Initial logic.py was noncompliant: should_retry returned status >= 400, retry_delay returned base, and no argument validation was present.",
+        "remedy": "Rewrote logic.py with a RETRYABLE_STATUSES tuple, boundary checks, and capped exponential delay; applied the proposal after human approval; ran tests, which passed.",
+        "applicability": "Use for similar retry-policy fixes limited to implementation code, especially when tests must not be edited and approval is required before applying changes.",
+        "evidence_call_ids": [
+          "call_00_ET_VYEkLxrgYAc3TBq5A65f1663",
+          "call_01_ET_LsrWfXZAnyRY5zY7SfAj9901",
+          "call_00_UtZN9nlMRUITMDQbwMFM7794",
+          "call_00_ET_XKqn19dXAVg4jLswYSYz4682",
+          "call_00_ET_veNlK1O8ngn5WguPmM5k8986",
+          "call_00_HKgYZoHTBYxRa1TMMSlD0536"
+        ],
+        "promotion": "verified_execution_evidence"
+      },
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "retry",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": false,
+      "workflow_completed": false,
+      "tokens": 26415,
+      "elapsed_seconds": 17.58,
+      "steps": 7,
+      "tool_errors": 4,
+      "plan": {
+        "request_hash": "ae149042bf0742e199b48643667be785b927d74b6800f1a7837d4cd303270560",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Inspect the repository to locate logic.py and the existing should_retry/retry_delay definitions plus the relevant tests, without modifying files.",
+            "acceptance": "logic.py and its tests are identified, and current behavior, test framework, and test command are documented from repository evidence."
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Modify only logic.py to implement retry eligibility and delay rules: 429/500/502/503/504 only; attempt 0-based and attempt < max_attempts-1; delay = min(cap, base*2**attempt); raise ValueError for negative attempt or max_attempts <= 0.",
+            "acceptance": "logic.py contains the specified behavior and validation; no test files or other repository files are changed."
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Run the relevant repository tests, then run the full test suite if the relevant suite passes.",
+            "acceptance": "Tests execute successfully with no failures; any failure is reported with its cause rather than hidden."
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "Verify repository changes are limited to logic.py and review the final diff for compliance with the stated constraints.",
+            "acceptance": "Diff shows only logic.py modified, tests unchanged, and all requested retry statuses, attempt bounds, delay formula, and ValueError cases present."
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 0,
+      "verification": "not_run",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "inventory",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 25222,
+      "elapsed_seconds": 23.2,
+      "steps": 6,
+      "tool_errors": 0,
+      "plan": null,
+      "reflection": {
+        "summary": "Updated logic.py so merge_stock accumulates qty per sku in first-seen order without mutating input, and available_skus returns skus with merged qty > 0. Empty input yields []; negative qty remains allowed. Test suite passed after patch.",
+        "failure": "No explicit test failure was observed. The initial logic.py was a non-conforming stub: merge_stock returned rows unchanged and available_skus ignored merged quantities (call_00_ET_u58GhpqSiDmXHZCkR9dY8255).",
+        "remedy": "Used totals dict and order list to accumulate qty, preserve first-seen order, and avoid mutating input; available_skus filters merge_stock results to qty > 0. Patch applied to logic.py after approval (call_00_sTUj26p4ugvwVU2ZtDoC5258, call_00_ET_HYaea8r98PWE5z21xHZH1621); tests passed (call_01_ET_rbdzpevZS0TeMyD84pZe8041).",
+        "applicability": "Use for order-preserving aggregation by key with immutable inputs, especially when negative quantities represent deductions and downstream filtering must use merged totals. Verify with empty input, duplicate skus, zero/negative totals.",
+        "evidence_call_ids": [
+          "call_00_ET_u58GhpqSiDmXHZCkR9dY8255",
+          "call_01_ET_yKAXAzzkLLhS8lAR8EDJ8506",
+          "call_00_sTUj26p4ugvwVU2ZtDoC5258",
+          "call_00_ET_HYaea8r98PWE5z21xHZH1621",
+          "call_00_ET_beV3uMqa94gGwLY2N1gw6179",
+          "call_01_ET_rbdzpevZS0TeMyD84pZe8041"
+        ],
+        "promotion": "verified_execution_evidence"
+      },
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "inventory",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": true,
+      "workflow_completed": false,
+      "tokens": 27928,
+      "elapsed_seconds": 19.14,
+      "steps": 7,
+      "tool_errors": 3,
+      "plan": {
+        "request_hash": "d1bb06fdfe752b8949fdbfbbb3430ddfa44f8ec23d826929786ce7334a808f1e",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查 logic.py 中 merge_stock 与 available_skus 的现有实现、函数签名和数据结构，并查看相关测试以确认期望输出格式；不修改任何文件。",
+            "acceptance": "已确认两个函数是否存在、输入输出类型、空输入及负数量相关测试预期，且工作区没有产生修改。"
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "在 logic.py 中修复 merge_stock：按 sku 累加 qty，保留每个 sku 首次出现顺序，不修改输入数据，空输入返回空列表，允许负数量参与累加。",
+            "acceptance": "merge_stock 对重复 sku 正确求和并保持首次出现顺序；调用后输入对象与调用前一致；空输入返回空列表；仅 logic.py 被修改。"
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "在 logic.py 中实现或修正 available_skus：基于 merge_stock 的合并结果，只返回合并后数量大于 0 的 sku，空输入返回空列表。",
+            "acceptance": "available_skus 排除数量为 0 或负数的 sku，保留满足条件的 sku，空输入返回空列表，且未修改测试文件。"
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "运行项目测试并检查变更范围，验证 merge_stock 与 available_skus 的行为及约束。",
+            "acceptance": "相关测试全部通过；测试文件未被修改；代码变更仅限 logic.py；如有失败，能定位到具体测试与原因。"
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 1,
+      "verification": "not_run",
+      "model": "deepseek-flash"
+    }
+  ]
+}

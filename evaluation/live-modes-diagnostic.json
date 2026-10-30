@@ -1,0 +1,88 @@
+{
+  "scope": "Real model, fixed synthetic tasks; held-out assertions outside editable workspace. One attempt per case/mode. Not production task success rate. Local execution, not sandbox.",
+  "dataset_sha256": "0223c9aa5036e55355010167f8ebf979aee8028413aaa2de63c68704c997ec58",
+  "results": [
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 19119,
+      "elapsed_seconds": 18.27,
+      "steps": 6,
+      "tool_errors": 0,
+      "plan": null,
+      "reflection": {
+        "summary": "Fixed parse_ids in logic.py only: split comma-separated input, ignore whitespace-only/empty items, convert remaining tokens to int, and preserve order and duplicates. The change was proposed, applied, and the provided test passed; tests and function signature were not modified.",
+        "failure": "No observed runtime test failure; code inspection found the initial implementation would call int() on whitespace or empty comma-separated tokens required to be ignored by the contract.",
+        "remedy": "Filter tokens with non-empty x.strip() before int conversion and convert the stripped token, without deduplicating. Use the provided proposal/apply flow, then run tests.",
+        "applicability": "Comma-separated integer list parsing where leading/trailing whitespace and empty items should be ignored while preserving sequence and repeated values.",
+        "evidence_call_ids": [
+          "call_00_ET_sP3pPiWChqTcqlsAAkaJ8661",
+          "call_01_ET_21jb3oERicLZPMDd9B3o6320",
+          "call_00_xfF7RC8f02TlojGItlYQ6073",
+          "call_00_R5aXwsVZNpUSpP5AlRtF5021",
+          "call_00_ET_GieypnTeR3SKceMqhdC86958"
+        ],
+        "promotion": "verified_execution_evidence"
+      },
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "parser",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": false,
+      "workflow_completed": false,
+      "tokens": 26000,
+      "elapsed_seconds": 20.75,
+      "steps": 7,
+      "tool_errors": 4,
+      "plan": {
+        "request_hash": "e0187bd32d8c2970a6972bd2856e752a14862ecc5697d84a8d9731f0c2bee3a9",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查仓库中的 logic.py 和相关测试，定位 parse_ids 的当前实现、函数签名、测试用例及测试运行方式。",
+            "acceptance": "已确认 parse_ids 所在文件与签名、现有逻辑、相关测试期望和测试命令，且未修改任何文件。"
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "仅修改 logic.py 中的 parse_ids，实现按逗号分隔解析整数，去除各项首尾空格，跳过空项，并保持输入顺序和重复值。",
+            "acceptance": "parse_ids 行为符合要求，函数签名保持不变，未修改测试文件或其他文件。"
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "运行与 parse_ids 相关的测试；若仓库测试入口明确，则运行对应测试套件。",
+            "acceptance": "相关测试全部通过；若存在失败，记录失败项及与本次修改的关系。"
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查最终改动，确认仅 logic.py 被修改且函数签名未变。",
+            "acceptance": "git diff 仅显示 logic.py 的预期改动，parse_ids 签名保持不变，测试结果已确认。"
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 0,
+      "verification": "not_run",
+      "model": "deepseek-flash"
+    }
+  ]
+}

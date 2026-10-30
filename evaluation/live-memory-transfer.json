@@ -1,0 +1,100 @@
+{
+  "scope": "Real model, fixed synthetic tasks; held-out assertions outside editable workspace. One attempt per case/mode. Not production task success rate. Local execution, not sandbox.",
+  "dataset_sha256": "0223c9aa5036e55355010167f8ebf979aee8028413aaa2de63c68704c997ec58",
+  "results": [
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 30178,
+      "elapsed_seconds": 21.86,
+      "steps": 9,
+      "tool_errors": 0,
+      "errors": [],
+      "plan": null,
+      "reflection": {
+        "summary": "Updated parse_ids in logic.py to split comma-separated integers, strip surrounding whitespace, ignore empty items, and preserve order and duplicates. The approved proposal was applied and the existing contract test passed. No failing test run was observed before the fix.",
+        "failure": "No observed failing test execution. The original logic.py (e2) did not strip whitespace or filter empty items, so it would not satisfy the contract shown in e3 for input like ' ,1,, 2,'.",
+        "remedy": "Replaced the comprehension with [int(x.strip()) for x in text.split(',') if x.strip()] via proposal e6/e9, applied in e7, then ran tests successfully in e8.",
+        "applicability": "Use when parsing delimited integer strings where surrounding whitespace and empty segments must be ignored while preserving order and duplicate values.",
+        "evidence_call_ids": [
+          "e2",
+          "e3",
+          "e6",
+          "e7",
+          "e8",
+          "e9"
+        ],
+        "promotion": "verified_execution_evidence"
+      },
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash",
+      "recalled_count": 0,
+      "stored_lessons": 1,
+      "condition": "seed"
+    },
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": false,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 17715,
+      "elapsed_seconds": 11.48,
+      "steps": 6,
+      "tool_errors": 0,
+      "errors": [],
+      "plan": null,
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash",
+      "recalled_count": 0,
+      "stored_lessons": 1,
+      "condition": "without_memory"
+    },
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 30915,
+      "elapsed_seconds": 17.09,
+      "steps": 8,
+      "tool_errors": 0,
+      "errors": [],
+      "plan": null,
+      "reflection": {
+        "summary": "In logic.py, parse_ids originally split on commas and directly converted tokens to int. The contract test failed on input with spaces and empty items, raising ValueError from int(' '). The implementation was updated to strip tokens and skip empty segments; the change was applied and the test suite passed.",
+        "failure": "The failing test observed in e5 showed parse_ids(\" ,1,, 2,\") raising ValueError because the original code passed whitespace and empty tokens directly to int().",
+        "remedy": "Strip each comma-separated token and filter out empty tokens before int conversion, as shown in the proposed diff and applied change; regression tests then passed.",
+        "applicability": "Applies to parsing delimiter-separated integers where callers expect surrounding whitespace and empty segments to be ignored while preserving order and duplicates.",
+        "evidence_call_ids": [
+          "e3",
+          "e4",
+          "e5",
+          "e6",
+          "e7",
+          "e8"
+        ],
+        "promotion": "verified_execution_evidence"
+      },
+      "reflection_error": null,
+      "approvals": 3,
+      "verification": "passed",
+      "model": "deepseek-flash",
+      "recalled_count": 1,
+      "stored_lessons": 2,
+      "condition": "with_memory"
+    }
+  ]
+}

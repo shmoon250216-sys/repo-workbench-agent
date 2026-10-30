@@ -70,6 +70,84 @@ class Store:
     def close(self):
         self.engine.dispose()
 
+    def save_lesson(self, session, data):
+        key = digest([session["id"], session["steps"]])
+        workspace = digest(str(Path(session["root"]).resolve()))
+        with self.transaction() as conn:
+            self._lock_session(conn, session["id"])
+            conn.execute(delete(t.lessons).where(t.lessons.c.expires < time.time()))
+            if not conn.execute(
+                select(t.lessons.c.id).where(t.lessons.c.id == key)
+            ).first():
+                conn.execute(
+                    insert(t.lessons).values(
+                        id=key,
+                        workspace=workspace,
+                        session=session["id"],
+                        data=data,
+                        created=time.time(),
+                        expires=time.time() + 30 * 86400,
+                    )
+                )
+            stale = (
+                conn.execute(
+                    select(t.lessons.c.id)
+                    .where(t.lessons.c.workspace == workspace)
+                    .order_by(t.lessons.c.created.desc())
+                    .offset(100)
+                )
+                .scalars()
+                .all()
+            )
+            if stale:
+                conn.execute(delete(t.lessons).where(t.lessons.c.id.in_(stale)))
+
+    def recall_lessons(self, root, query, exclude=None):
+        from .deliberation import terms
+
+        tokens = terms(query)
+        with self.engine.connect() as conn:
+            rows = (
+                conn.execute(
+                    select(t.lessons)
+                    .where(
+                        t.lessons.c.workspace == digest(str(Path(root).resolve())),
+                        t.lessons.c.expires > time.time(),
+                    )
+                    .order_by(t.lessons.c.created.desc())
+                    .limit(100)
+                )
+                .mappings()
+                .all()
+            )
+        ranked = []
+        for row in rows:
+            if row["session"] == exclude:
+                continue
+            score = len(tokens & terms(json.dumps(row["data"], ensure_ascii=False)))
+            if score:
+                ranked.append(
+                    (
+                        score,
+                        dict(
+                            id=row["id"], source_session=row["session"], **row["data"]
+                        ),
+                    )
+                )
+        return [item for _, item in sorted(ranked, key=lambda pair: -pair[0])[:3]]
+
+    def delete_lesson(self, root, lid):
+        with self.transaction() as conn:
+            return (
+                conn.execute(
+                    delete(t.lessons).where(
+                        t.lessons.c.id == lid,
+                        t.lessons.c.workspace == digest(str(Path(root).resolve())),
+                    )
+                ).rowcount
+                == 1
+            )
+
     @contextmanager
     def transaction(self):
         with self.engine.connect() as conn:
@@ -100,8 +178,14 @@ class Store:
         constraints=None,
         acceptance_criteria=None,
         semantic_requirements=False,
+        agent_mode="react",
+        learning_enabled=False,
     ):
+        if agent_mode not in {"react", "plan_execute"}:
+            raise ValueError("Invalid agent mode")
         s = dict(
+            agent_mode=agent_mode,
+            learning_enabled=learning_enabled,
             id=uuid.uuid4().hex,
             root=str(Path(root).resolve()),
             task=task,
@@ -439,6 +523,7 @@ class Store:
         if name == "run_tests":
             candidate["verification"] = result.get("status", "error")
             candidate["test_revision"] = candidate["revision"]
+            candidate["verification_snapshot"] = result.get("workspace_sha256")
         candidate["messages"].append(
             dict(
                 role="tool",

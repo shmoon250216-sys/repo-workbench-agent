@@ -19,6 +19,18 @@ options = {
     "mysql_charset": "utf8mb4",
     "mysql_collate": "utf8mb4_bin",
 }
+lessons = Table(
+    "lessons",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("workspace", String(64), nullable=False),
+    Column("session", String(32), nullable=False),
+    Column("data", JSON, nullable=False),
+    Column("created", Float(precision=53), nullable=False),
+    Column("expires", Float(precision=53), nullable=False),
+    Index("ix_lessons_workspace_created", "workspace", "created"),
+    **options,
+)
 sessions = Table(
     "sessions",
     metadata,

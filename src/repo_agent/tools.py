@@ -11,7 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .execution import build_plan, digest
+from .deliberation import Progress, record_progress
+from .execution import build_plan, digest, workspace_snapshot
 from .policy import Denied, Policy
 from .task_state import task_state
 
@@ -72,6 +73,10 @@ class UserRequest(Args):
 
 
 SPECS = {
+    "record_plan_progress": (
+        Progress,
+        "In plan_execute mode, mark only the current step done with completed tool call IDs as evidence, or blocked with a reason. Do not claim completion without satisfying its acceptance condition.",
+    ),
     "read_user_request": (
         UserRequest,
         "Read the original user requirement by source ID in this session; use when an extracted requirement is unclear. Returns up to 3000 characters.",
@@ -176,6 +181,7 @@ class Tools:
                         "path",
                         "approval_id",
                         "execution_spec_sha256",
+                        "workspace_sha256",
                     )
                     if k in result
                 },
@@ -188,6 +194,9 @@ class Tools:
 
     def list_files(self, **_):
         return {"files": self.policy.files()}
+
+    def record_plan_progress(self, call_id, **args):
+        return record_progress(self.session, self.store, **args)
 
     def read_user_request(self, source, offset=0, **_):
         record = next(
@@ -423,9 +432,18 @@ class Tools:
                 }
             output.seek(0)
             raw = output.read(100000).decode("utf-8", errors="replace")
+        try:
+            final_sha = workspace_snapshot(self.policy.root, self.store.directory)[
+                "sha256"
+            ]
+        except Exception:
+            final_sha = None
         return {
+            "workspace_sha256": final_sha,
             "status": (
-                "not_run"
+                "stale"
+                if final_sha != checked.spec["snapshot"]["sha256"]
+                else "not_run"
                 if runner == "unittest" and re.search(r"Ran 0 tests?", raw)
                 else "passed"
                 if code == 0

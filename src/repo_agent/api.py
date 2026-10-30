@@ -6,6 +6,7 @@ import secrets
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from fastapi import (
     BackgroundTasks,
@@ -19,6 +20,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .deliberation import Deliberation
 from .demo import ScriptedDemo
 from .engine import Engine
 from .provider import ChatProvider
@@ -30,6 +32,8 @@ from .task_state import requirement_list
 class NewTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task: str = Field(min_length=1, max_length=16000, pattern=r"\S")
+    agent_mode: Literal["react", "plan_execute"] = "react"
+    learning_enabled: bool = False
     max_steps: int = Field(default=20, ge=1, le=40)
     constraints: list[str] = Field(default_factory=list, max_length=8)
     acceptance_criteria: list[str] = Field(default_factory=list, max_length=8)
@@ -69,6 +73,9 @@ def create_app(
     engine = Engine(
         store,
         provider,
+        deliberator=None
+        if isinstance(provider, ScriptedDemo)
+        else Deliberation(ChatProvider(timeout=15, attempts=1)),
         backend=backend or os.getenv("REPO_AGENT_EXECUTION", "disabled"),
         extractor=extractor
         or (None if isinstance(provider, ScriptedDemo) else configured_extractor()),
@@ -220,6 +227,8 @@ def create_app(
                 constraints=body.constraints,
                 acceptance_criteria=body.acceptance_criteria,
                 semantic_requirements=engine.extractor is not None,
+                agent_mode=body.agent_mode,
+                learning_enabled=body.learning_enabled,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -337,5 +346,9 @@ def create_app(
                 result = schedule(sid, tasks, resume=True)
                 return {**result, "auto_resumed": True}
         return {"status": "recorded", "auto_resumed": False}
+
+    @app.delete("/api/lessons/{lid}", dependencies=[Depends(auth)])
+    def delete_lesson(lid: str):
+        return {"deleted": store.delete_lesson(root, lid)}
 
     return app

@@ -52,6 +52,16 @@ class StorageContract:
             call_id="c1",
         )
 
+    def test_lessons_survive_reconnect_and_delete(self):
+        self.store.save_lesson(
+            self.s, dict(summary="parser empty input", remedy="skip empty token")
+        )
+        other = self.open_store()
+        lessons = other.recall_lessons(self.base, "parser")
+        self.assertEqual(len(lessons), 1)
+        self.assertTrue(other.delete_lesson(self.base, lessons[0]["id"]))
+        self.assertEqual(self.store.recall_lessons(self.base, "parser"), [])
+
     def parallel(self, fn):
         other = self.open_store()
         barrier = threading.Barrier(2)

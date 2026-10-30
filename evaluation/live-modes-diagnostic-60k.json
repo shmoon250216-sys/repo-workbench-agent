@@ -1,0 +1,134 @@
+{
+  "scope": "Real model, fixed synthetic tasks; held-out assertions outside editable workspace. One attempt per case/mode. Not production task success rate. Local execution, not sandbox.",
+  "dataset_sha256": "0223c9aa5036e55355010167f8ebf979aee8028413aaa2de63c68704c997ec58",
+  "results": [
+    {
+      "id": "parser",
+      "mode": "react",
+      "learning": true,
+      "status": "completed",
+      "passed": true,
+      "workflow_completed": true,
+      "tokens": 23639,
+      "elapsed_seconds": 17.02,
+      "steps": 7,
+      "tool_errors": 0,
+      "errors": [],
+      "plan": null,
+      "reflection": null,
+      "reflection_error": "ValueError",
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    },
+    {
+      "id": "parser",
+      "mode": "plan_execute",
+      "learning": true,
+      "status": "budget_exhausted",
+      "passed": true,
+      "workflow_completed": false,
+      "tokens": 64614,
+      "elapsed_seconds": 29.56,
+      "steps": 14,
+      "tool_errors": 7,
+      "errors": [
+        {
+          "id": "call_00_yFmtiqnSmpdMsvIQgtTX0125",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Evidence must reference completed calls in this session",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_00_yTFYmCPV45x28LlKrtZG6842",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Completed step requires tool evidence",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_00_MnQUO0Tg7AZb3qVHNMIt3054",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Evidence must reference completed calls in this session",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_01_m4Ut2lPvukiTPdiOqUwI5502",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Only the current sequential plan step can be updated",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_00_NbjPypJBOmcxxLBhNX0J2211",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Evidence must reference completed calls in this session",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_00_6dr6rk4qtqYim6D4SCuJ1964",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Evidence must reference completed calls in this session",
+            "type": "ValueError"
+          }
+        },
+        {
+          "id": "call_00_5oXfBNQ5jNC9yaQuvaLU7601",
+          "tool": "record_plan_progress",
+          "result": {
+            "error": "Evidence must reference completed calls in this session",
+            "type": "ValueError"
+          }
+        }
+      ],
+      "plan": {
+        "request_hash": "e0187bd32d8c2970a6972bd2856e752a14862ecc5697d84a8d9731f0c2bee3a9",
+        "steps": [
+          {
+            "id": "p1",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查仓库中的 logic.py，定位 parse_ids 的实现、函数签名及现有行为，并查看相关测试对逗号分隔、空白、空项、顺序和重复值的预期。",
+            "acceptance": "已确认 parse_ids 的当前实现、签名和测试预期，并记录需要修复的具体行为；未修改任何文件。"
+          },
+          {
+            "id": "p2",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "仅修改 logic.py 中的 parse_ids 实现：按逗号分割，去除每个片段首尾空格，跳过空片段，转换为整数，并保持输入顺序和重复值。",
+            "acceptance": "logic.py 中 parse_ids 已修复，函数签名未变；测试文件和其他文件未被修改。"
+          },
+          {
+            "id": "p3",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "运行仓库测试套件（至少覆盖 parse_ids 的测试）验证修复。",
+            "acceptance": "测试命令执行完成并输出结果；所有相关测试通过，或若失败则记录与本次修改相关的明确失败信息。"
+          },
+          {
+            "id": "p4",
+            "status": "pending",
+            "evidence_call_ids": [],
+            "goal": "检查最终差异，确认只改动了 logic.py 且符合顺序、重复值、空白与空项要求。",
+            "acceptance": "git diff/状态显示仅 logic.py 有变更，签名和测试未改，修复逻辑覆盖所需行为。"
+          }
+        ],
+        "replans": 0
+      },
+      "reflection": null,
+      "reflection_error": null,
+      "approvals": 2,
+      "verification": "passed",
+      "model": "deepseek-flash"
+    }
+  ]
+}
