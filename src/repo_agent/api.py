@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import (
@@ -16,18 +17,27 @@ from fastapi import (
     Response,
 )
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .demo import ScriptedDemo
 from .engine import Engine
 from .provider import ChatProvider
+from .requirements import configured_extractor
 from .store import Store
+from .task_state import requirement_list
 
 
 class NewTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    task: str = Field(min_length=1, max_length=4000, pattern=r"\S")
+    task: str = Field(min_length=1, max_length=16000, pattern=r"\S")
     max_steps: int = Field(default=20, ge=1, le=40)
+    constraints: list[str] = Field(default_factory=list, max_length=8)
+    acceptance_criteria: list[str] = Field(default_factory=list, max_length=8)
+
+    @field_validator("constraints", "acceptance_criteria")
+    @classmethod
+    def validate_requirements(cls, values):
+        return requirement_list(values)
 
 
 class Decision(BaseModel):
@@ -39,17 +49,37 @@ class Login(BaseModel):
     password: str = Field(min_length=1, max_length=512)
 
 
-def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=None):
+def create_app(
+    root=None,
+    state_dir=None,
+    *,
+    token=None,
+    provider=None,
+    backend=None,
+    extractor=None,
+    database_url=None,
+):
     root = Path(root or os.getenv("REPO_AGENT_WORKSPACE", ".")).resolve()
-    store = Store(state_dir or os.getenv("REPO_AGENT_STATE", ".runtime"))
+    store = Store(
+        state_dir or os.getenv("REPO_AGENT_STATE", ".runtime"),
+        database_url=database_url or os.getenv("REPO_AGENT_DATABASE_URL"),
+    )
     mode = os.getenv("REPO_AGENT_MODE", "live")
     provider = provider or (ScriptedDemo() if mode == "demo" else ChatProvider())
     engine = Engine(
         store,
         provider,
         backend=backend or os.getenv("REPO_AGENT_EXECUTION", "disabled"),
+        extractor=extractor
+        or (None if isinstance(provider, ScriptedDemo) else configured_extractor()),
     )
-    app = FastAPI(title="Repo Workbench", version="0.2.0")
+
+    @asynccontextmanager
+    async def lifespan(app):
+        yield
+        store.close()
+
+    app = FastAPI(title="Repo Workbench", version="0.2.0", lifespan=lifespan)
     app.state.store, app.state.engine = store, engine
     secret = token or os.getenv("REPO_AGENT_WEB_TOKEN") or secrets.token_urlsafe(32)
     app.state.token = secret
@@ -94,7 +124,7 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
                     followup = jobs["followup"]
                     jobs["followup"] = None
                 if followup:
-                    engine.follow_up(sid, followup)
+                    engine.follow_up(sid, followup, origin="approval_notice")
                 engine.run(sid)
                 with guard:
                     if jobs["again"]:
@@ -168,6 +198,8 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
             else "live-model",
             "backend": engine.backend,
             "model": getattr(provider, "model", "scripted-demo"),
+            "requirement_extraction": engine.extractor is not None,
+            "database": store.backend,
         }
 
     @app.get("/api/sessions", dependencies=[Depends(auth)])
@@ -180,7 +212,17 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
 
     @app.post("/api/sessions", dependencies=[Depends(auth)])
     def create(body: NewTask):
-        return store.create(root, body.task, body.max_steps)
+        try:
+            return store.create(
+                root,
+                body.task,
+                body.max_steps,
+                constraints=body.constraints,
+                acceptance_criteria=body.acceptance_criteria,
+                semantic_requirements=engine.extractor is not None,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.get("/api/sessions/{sid}", dependencies=[Depends(auth)])
     def get(sid: str):
@@ -190,7 +232,7 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
 
     @app.get("/api/sessions/{sid}/events", dependencies=[Depends(auth)])
     async def events(sid: str, request: Request, after: int = 0):
-        session(sid)
+        await asyncio.to_thread(session, sid)
         try:
             after = max(after, int(request.headers.get("last-event-id", "0")))
         except ValueError:
@@ -199,11 +241,13 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
         async def stream():
             cursor, signature, ticks = max(0, after), "", 0
             while not await request.is_disconnected():
-                rows = store.events(sid, after=cursor, limit=200)
+                rows = await asyncio.to_thread(
+                    store.events, sid, after=cursor, limit=200
+                )
                 for row in rows:
                     cursor = row["id"]
                     yield f"id: {cursor}\nevent: trace\ndata: {json.dumps(row, ensure_ascii=False)}\n\n"
-                s = session(sid)
+                s = await asyncio.to_thread(session, sid)
                 state = {
                     k: s.get(k)
                     for k in [
@@ -246,7 +290,13 @@ def create_app(root=None, state_dir=None, *, token=None, provider=None, backend=
             if jobs["owner"] is not None:
                 raise HTTPException(409, "当前工作区仍在执行，请稍后追加")
             try:
-                return engine.follow_up(sid, body.task, body.max_steps)
+                return engine.follow_up(
+                    sid,
+                    body.task,
+                    body.max_steps,
+                    constraints=body.constraints,
+                    acceptance_criteria=body.acceptance_criteria,
+                )
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from None
 

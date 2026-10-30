@@ -107,7 +107,7 @@ class WorkbenchTests(unittest.TestCase):
 
     def tearDown(self):
         self.client.__exit__(None, None, None)
-        self.app.state.store.db.close()
+        self.app.state.store.close()
         self.tmp.cleanup()
 
     def login(self):

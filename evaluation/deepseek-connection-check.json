@@ -1,0 +1,179 @@
+{
+  "scope": "live synthetic connectivity and requirement smoke check; no repository tools executed",
+  "main_agent": {
+    "connection": "ok",
+    "tool_call_protocol_passed": true,
+    "model": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 1348,
+      "completion_tokens": 47,
+      "total_tokens": 1395,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 25
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 1348
+    },
+    "seconds": 0.95,
+    "tools_executed": false
+  },
+  "requirements": {
+    "initial": {
+      "status": "extracted",
+      "version": 1,
+      "usage_tokens": 2108,
+      "source_count": 1,
+      "projection_used": true,
+      "raw_state_chars": 3156,
+      "projected_state_chars": 1203,
+      "requirements": [
+        {
+          "id": "v1-0",
+          "kind": "goal",
+          "text": "为订单列表增加分页功能。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-1",
+          "kind": "constraint",
+          "text": "不得修改数据库结构。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-2",
+          "kind": "constraint",
+          "text": "必须保留已有返回字段。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-3",
+          "kind": "acceptance",
+          "text": "默认每页20条。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-4",
+          "kind": "acceptance",
+          "text": "空页返回空列表，不报错。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-5",
+          "kind": "background",
+          "text": "旧客户端仍在使用，需要兼容。",
+          "source": "initial"
+        }
+      ]
+    },
+    "correction": {
+      "status": "extracted",
+      "version": 2,
+      "usage_tokens": 1266,
+      "source_count": 1,
+      "projection_used": true,
+      "raw_state_chars": 1787,
+      "projected_state_chars": 1264,
+      "requirements": [
+        {
+          "id": "v1-0",
+          "kind": "goal",
+          "text": "为订单列表增加分页功能。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-1",
+          "kind": "constraint",
+          "text": "不得修改数据库结构。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-2",
+          "kind": "constraint",
+          "text": "必须保留已有返回字段。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-4",
+          "kind": "acceptance",
+          "text": "空页返回空列表，不报错。",
+          "source": "initial"
+        },
+        {
+          "id": "v1-5",
+          "kind": "background",
+          "text": "旧客户端仍在使用，需要兼容。",
+          "source": "initial"
+        },
+        {
+          "id": "v2-0",
+          "kind": "acceptance",
+          "text": "默认每页改为50条。",
+          "source": "message:0"
+        }
+      ]
+    },
+    "final_items": [
+      {
+        "id": "v1-0",
+        "kind": "goal",
+        "text": "为订单列表增加分页功能。",
+        "source": "initial",
+        "quote": "为订单列表增加分页功能。",
+        "replaces": [],
+        "correction_quote": ""
+      },
+      {
+        "id": "v1-1",
+        "kind": "constraint",
+        "text": "不得修改数据库结构。",
+        "source": "initial",
+        "quote": "不得修改数据库结构。",
+        "replaces": [],
+        "correction_quote": ""
+      },
+      {
+        "id": "v1-2",
+        "kind": "constraint",
+        "text": "必须保留已有返回字段。",
+        "source": "initial",
+        "quote": "必须保留已有返回字段。",
+        "replaces": [],
+        "correction_quote": ""
+      },
+      {
+        "id": "v1-4",
+        "kind": "acceptance",
+        "text": "空页返回空列表，不报错。",
+        "source": "initial",
+        "quote": "空页返回空列表，不报错。",
+        "replaces": [],
+        "correction_quote": ""
+      },
+      {
+        "id": "v1-5",
+        "kind": "background",
+        "text": "旧客户端仍在使用，需要兼容。",
+        "source": "initial",
+        "quote": "背景：旧客户端仍在使用，需要兼容。",
+        "replaces": [],
+        "correction_quote": ""
+      },
+      {
+        "id": "v2-0",
+        "kind": "acceptance",
+        "text": "默认每页改为50条。",
+        "source": "message:0",
+        "quote": "更正：默认每页改为50条，其他要求保持不变。",
+        "replaces": [
+          "v1-3"
+        ],
+        "correction_quote": "更正：默认每页改为50条，其他要求保持不变。"
+      }
+    ],
+    "cache": "cached",
+    "seconds": 5.45
+  }
+}

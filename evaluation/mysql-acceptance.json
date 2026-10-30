@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-21",
+  "mysql_version": "8.0.12",
+  "mysql_host": "127.0.0.1:3308",
+  "schema_version": "0001_storage",
+  "suite": {
+    "total": 129,
+    "passed": 128,
+    "skipped": 1
+  },
+  "offline_scenarios": [
+    {
+      "id": "RW-001",
+      "category": "bug-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-002",
+      "category": "boundary-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-003",
+      "category": "feature",
+      "passed": true,
+      "steps": 6,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-004",
+      "category": "feature",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-005",
+      "category": "boundary-fix",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-006",
+      "category": "refactor",
+      "passed": true,
+      "steps": 7,
+      "verification": "passed",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit",
+        "run_tests"
+      ]
+    },
+    {
+      "id": "RW-007",
+      "category": "approval-denied",
+      "passed": true,
+      "steps": 6,
+      "verification": "not_run",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file",
+        "propose_edit",
+        "apply_edit"
+      ]
+    },
+    {
+      "id": "RW-008",
+      "category": "repository-understanding",
+      "passed": true,
+      "steps": 4,
+      "verification": "not_run",
+      "tools": [
+        "load_skill",
+        "list_files",
+        "read_file"
+      ]
+    }
+  ],
+  "scope": "SQLite and real local MySQL contracts, HTTP/SSE/approval workflow, concurrency and injected transaction failures. No live model calls. MySQL 8.4 CI configuration added but not run here."
+}

@@ -6,13 +6,13 @@ name = "repo-workbench-agent"
 version = "0.2.0"
 description = "A bounded, inspectable coding agent for local repository tasks"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.6", "fastapi>=0.110", "uvicorn>=0.27"]
+dependencies = ["pydantic>=2.6", "fastapi>=0.110", "uvicorn>=0.27", "SQLAlchemy>=2.0,<3", "alembic>=1.13,<2", "PyMySQL[rsa]>=1.1,<2"]
 [project.scripts]
 repo-agent = "repo_agent.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 [tool.setuptools.package-data]
-repo_agent = ["static/*.html", "skills/*/SKILL.md"]
+repo_agent = ["static/*.html", "skills/*/SKILL.md", "migrations/*.py", "migrations/versions/*.py"]
 
 [tool.ruff]
 target-version = 'py311'

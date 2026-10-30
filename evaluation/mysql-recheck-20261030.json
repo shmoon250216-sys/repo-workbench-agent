@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-30",
+  "restart_data_verified": true,
+  "counts": {
+    "sessions": 5,
+    "messages": 69,
+    "events": 207,
+    "calls": 35,
+    "approvals": 9,
+    "artifacts": 0,
+    "legacy_imports": 5
+  },
+  "tests": 129,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 1,
+  "passed": 128
+}

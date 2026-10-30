@@ -52,7 +52,7 @@ class RuntimeTests(unittest.TestCase):
         (self.root / "a.py").write_text("value = 1\n", encoding="utf-8")
 
     def tearDown(self):
-        self.store.db.close()
+        self.store.close()
         self.tmp.cleanup()
 
     def tool(self, name, args, cid="one"):
@@ -221,11 +221,8 @@ class RuntimeTests(unittest.TestCase):
 
     def test_docker_missing_does_not_fallback(self):
         self.tools.backend = "docker"
-        with self.assertRaises(ApprovalNeeded) as cm:
-            self.tool("run_tests", {})
-        self.store.resolve(self.s["id"], cm.exception.aid, True)
         with (
-            patch("repo_agent.tools.shutil.which", return_value=None),
+            patch("repo_agent.execution.shutil.which", return_value=None),
             self.assertRaises(Denied),
         ):
             self.tool("run_tests", {})
@@ -301,7 +298,7 @@ class RuntimeTests(unittest.TestCase):
             ]
         context, cut = assemble(self.s, self.tools.skills(), 6000)
         self.assertGreater(cut, 0)
-        self.assertIn(self.s["task"], context[0]["content"])
+        self.assertIn(self.s["task"], context[1]["content"])
         self.assertLess(len(json.dumps(context, ensure_ascii=False)), 6000)
         calls = {c["id"] for m in context for c in m.get("tool_calls", [])}
         self.assertEqual(
@@ -353,7 +350,7 @@ class RuntimeTests(unittest.TestCase):
                     "/api/sessions", headers=headers, json={"task": "x", "root": "/etc"}
                 ).status_code,
             )
-        app.state.store.db.close()
+        app.state.store.close()
 
     def test_followup_preserves_history(self):
         e = Engine(

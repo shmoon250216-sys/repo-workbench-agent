@@ -7,9 +7,9 @@
 ## 解决的问题
 
 - 单次代码问答无法落实修改：用 `model → tool_calls → tool_result → model` 循环保留反馈，直到答复、审批暂停或预算耗尽。
-- 工具结果不断增长：保存完整会话，发送前按完整工具交互组裁剪历史；长结果外置，按 ID 分段回读，工作笔记保留目标与进度。
+- 工具结果不断增长：保存完整会话，发送前按完整工具交互组裁剪历史；长结果外置，按 ID 分段回读。用户目标和要求单独保留来源，避免追问中的限制随历史被裁掉；模型工作笔记与用户要求分开。
 - 自动编辑难以审查：将 `propose_edit` 与 `apply_edit` 分开，展示 diff、逐项授权，应用前核对 SHA-256，避免覆盖审批后发生的修改。
-- 中途退出丢失工作：SQLite 保存会话、调用结果和审批；恢复时先处理未完成工具调用，已记录的结果直接回放。
+- 中途退出丢失工作：SQLAlchemy 支持 SQLite / MySQL，保存会话、独立消息历史、调用结果及审批；工具完成记录、消息和会话更新在同一事务提交，恢复时先处理未完成工具调用。
 - 模型声称完成不等于测试通过：单独记录代码 revision 和实际测试结果，修改后验证失效；未测试的修改明确标为 `completed_unverified`。
 
 ## 快速运行
@@ -47,7 +47,7 @@ repo-agent --workspace 'D:/你的项目副本' --state .runtime/live-state serve
 ```text
 用户任务 / 追加问题
     ↓
-SQLite 会话 → 上下文投影（任务 + 技能目录 + 笔记 + 历史交互组）
+SQLite / MySQL 会话 → 上下文投影（任务 + 技能目录 + 笔记 + 历史交互组）
     ↓
 ChatProvider → 工具参数校验 → 权限校验 → 执行 / 等待人工批准
     ↑                                         ↓
@@ -60,8 +60,12 @@ ChatProvider → 工具参数校验 → 权限校验 → 执行 / 等待人工�
 | --- | --- |
 | `src/repo_agent/engine.py` | 动态工具循环、恢复、预算、重复失败终止、多轮追加 |
 | `context.py` | 有界历史投影、工具调用/结果成组保留 |
-| `tools.py` / `policy.py` | 10 个工具、Pydantic 参数契约、范围检查、审批及测试执行 |
-| `store.py` | 会话、事件、调用结果、审批、产物归属的 SQLite 持久化 |
+| `execution.py` | 测试执行规格、工作区指纹及解释器/镜像身份 |
+| `requirements.py` | 可选模型需求提取、结构化校验、增量更正与缓存投影 |
+| `task_state.py` | 本轮目标、逐次用户原文及显式约束/验收条件，来源记录与容量限制 |
+| `tools.py` / `policy.py` | 11 个工具、Pydantic 参数契约、范围检查、审批及测试执行 |
+| `store.py` / `schema.py` | SQLAlchemy 双后端、会话版本检查、短事务、独立消息和数据库产物 |
+| `migrations/` / `storage_migration.py` | Alembic 表结构版本、旧 SQLite 只读备份与一次性导入 |
 | `provider.py` | 可配置模型接口、超时与有限重试 |
 | `skills/*/SKILL.md` | 四类技能的目录描述与按需加载正文 |
 | `api.py` / `static/index.html` | 本地鉴权、任务面板、轨迹、差异审核、继续/停止 |
@@ -71,7 +75,7 @@ ChatProvider → 工具参数校验 → 权限校验 → 执行 / 等待人工�
 
 ## 工具与技能
 
-10 个工具：`list_files`、`read_file`、`search_code`、`load_skill`、`propose_edit`、`apply_edit`、`run_tests`、`show_diff`、`save_notes`、`read_artifact`。
+11 个工具：`read_user_request`、`list_files`、`read_file`、`search_code`、`load_skill`、`propose_edit`、`apply_edit`、`run_tests`、`show_diff`、`save_notes`、`read_artifact`。
 
 4 类 Skills：仓库理解、功能开发、缺陷诊断、测试审查。系统提示只放技能名称与说明，正文通过工具加载。工具 schema 目前全部随模型请求发送，未实现工具 schema 动态搜索。
 
@@ -84,7 +88,7 @@ python -m unittest discover -s tests -v
 python scripts/evaluate.py
 ```
 
-本地 Windows：51 项测试，50 通过、1 项因无法创建符号链接跳过；8 个离线集成场景通过，包含真实临时文件修改及测试子进程。网页通过登录、SSE 实时文字、审批自动继续、刷新恢复、会话搜索、退出及移动端无横向溢出检查。
+2026-10-21 本地 Windows 回归（包含真实 MySQL 8.0.12）：129 项测试，128 通过、1 项因无法创建符号链接跳过；8 个离线集成场景通过。新增双数据库存储契约与 MySQL HTTP 接口回归，验证并发授权领取、过期写入拒绝、故障回滚、重连恢复、登录、SSE 和审批自动继续。本轮没有重复浏览器截图检查，也没有调用真实模型。见 [MySQL 验收报告](evaluation/mysql-acceptance.json)。未设置测试数据库 URL 时 MySQL 集成测试会明确跳过；CI 已添加 MySQL 8.4 服务配置，尚未推送运行。
 
 这些结果验证机制，不衡量模型的独立规划或代码生成能力。`evaluation/offline-results.json` 记录数据 SHA-256、模式和逐项结果；另有少量 DeepSeek 实机冒烟测试：加法修复通过两个测试并能回答后续追问；只读流式任务完成 2 轮调用、产生 9 条文本增量。仅证明接入及基础闭环，不代表复杂任务成功率。详情见 [验收记录](docs/acceptance.md)。
 
@@ -92,9 +96,23 @@ python scripts/evaluate.py
 
 仅面向本机单操作人的仓库工作台，默认绑定 `127.0.0.1`，浏览器使用 HttpOnly / SameSite=Strict 会话 Cookie，API 保留 Bearer 兼容；跨站来源被拒绝。工作区锁为单进程内锁，不支持多 worker 互斥或多租户服务。
 
-路径检查拒绝越界、受保护目录、符号/硬链接和常见密钥文件；这不是完整的数据防泄漏或操作系统隔离。测试默认禁用，Docker 后端不可用时拒绝执行，绝不自动降级到宿主机。Docker 运行策略已实现，当前机器没有 Docker，尚未进行实机验收。
+路径检查拒绝越界、受保护目录、符号/硬链接和常见密钥文件；这不是完整的数据防泄漏或操作系统隔离。测试默认禁用，Docker 后端不可用时拒绝执行，绝不自动降级到宿主机。Docker 运行策略已实现，尚未进行容器执行实机验收。
 
 历史使用**字符预算**，不是精确 token 压缩；没有宣称 KV Cache 命中收益、Mem0 长期记忆、自进化 Skills 或自动安全证明。更多约束见 [设计与权限](docs/design.md)。
+
+### 长对话中的用户要求保护
+
+普通网页聊天无需改变用法：最初任务和后续用户原文按来源保存，最新一次真实用户输入作为本轮目标。被裁掉的是普通历史投影，受保护的用户要求仍随请求发送。更正保留前后记录，由模型结合明确的最新更正理解；程序不通过关键词自动推断哪些条件已撤销，也不保证模型一定遵守所有要求。
+
+API 的创建任务和追问接口还支持可选的 `constraints`、`acceptance_criteria` 字符串数组（各最多 8 项，每项最多 500 字符）。例如：
+
+```json
+{"task":"增加分页功能","constraints":["不得删除已有返回字段"],"acceptance_criteria":["空页返回空列表","旧客户端调用保持兼容"]}
+```
+
+这些字段补充原文，不替代原文；网页目前不提供单独输入框，直接在聊天里写要求同样受到原文保护。模型 `save_notes` 不得改写用户要求；审批自动续跑通知不替换本轮目标。
+
+未开启模型提取时，受保护任务状态序列化容量为 12000 字符，超限时拒绝新增追问，已有数据库记录保持不变。完整 messages 投影默认最多 18000 字符，包含 JSON 序列化开销，仍不包含 tools schema，亦非供应商 token 窗口硬保证。保护区与最近完整交互放不下时明确报错，不静默截断用户条件。旧工具信息仍是有界摘录；现在可额外启用模型对用户要求做结构化语义提取。详细说明见 [上下文保护设计](docs/context-protection.md)。
 
 ## 参考与归属
 
@@ -111,3 +129,17 @@ MIT License。
 - 断线使用事件 ID 续接，前端去重；已输出部分内容后网络失败不会自动重放模型请求，避免半截工具调用被执行。
 
 操作与验证见 [工作台升级说明](docs/workbench-v2.md)。
+
+### 可选：模型需求提取
+
+设置 `REPO_AGENT_REQUIREMENTS_ENABLED=1` 并单独配置 `REPO_AGENT_REQUIREMENTS_BASE_URL`、`REPO_AGENT_REQUIREMENTS_MODEL`、`REPO_AGENT_REQUIREMENTS_API_KEY`。默认关闭，不会自动读取 .env，也不自动使用主模型密钥。长输入触发模型提取目标、约束与验收条件；通过来源引用检查后保存版本，并用较短视图组装上下文。新增 `read_user_request` 可按来源回读原文。提取失败回退原文，无法容纳则明确停止。
+
+本轮仅完成模拟模型及协议回归，真实模型的遗漏率、更正准确性与 token 收益待配置后测量。配置、容量边界和验收方法见 [模型需求提取说明](docs/requirement-extraction.md)。
+
+### 测试审批绑定具体执行规格
+
+审批现在绑定代码内容指纹、实际命令、后端和运行环境。批准后重新核对；内容改变则旧审批失效并请求新审批。授权通过数据库条件更新只能领取一次，测试结果附带对应审批和规格摘要。Docker 使用本机镜像 ID，未准备环境时拒绝执行。详见 [执行审批设计与边界](docs/execution-approval.md)。
+
+## 项目成果与评测口径
+
+最新[项目描述与证据](docs/resume-project-description.md)按技术方法、解决的问题和验证结果整理；合成评测与离线机制测试不代表线上业务收益。

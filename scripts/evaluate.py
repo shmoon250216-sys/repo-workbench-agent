@@ -112,7 +112,7 @@ def execute(case):
                 assert s["verification"] == "passed"
         assert s["status"] == "completed", s
         events = store.events(s["id"])
-        store.db.close()
+        store.close()
         return dict(
             id=case["id"],
             category=case["category"],

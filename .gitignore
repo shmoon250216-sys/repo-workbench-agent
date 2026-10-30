@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 .env
+.env.*.local
 
 docs/screenshots/
 !.env.example

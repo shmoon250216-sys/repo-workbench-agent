@@ -1,30 +1,106 @@
+"""SQLite/MySQL persistence with short transactions and optimistic updates."""
+
+import copy
+import hashlib
 import json
-import sqlite3
-import threading
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, delete, event, insert, select, update
+from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import IntegrityError
+
+from . import schema as t
+from .execution import digest
+from .task_state import protect_requirements
+
+
+class StoreConflict(ValueError):
+    """Reload before retrying; a stale whole-session save would lose data."""
 
 
 class Store:
-    def __init__(self, directory):
+    def __init__(self, directory, database_url=None):
         self.directory = Path(directory).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
-        self.lock = threading.RLock()
-        self.db = sqlite3.connect(
-            self.directory / "sessions.db", check_same_thread=False
+        url = (
+            make_url(database_url)
+            if database_url
+            else URL.create("sqlite", database=str(self.directory / "sessions-v2.db"))
         )
-        self.db.row_factory = sqlite3.Row
-        self.db.executescript("""
-        CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY, session TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,data TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,session TEXT,kind TEXT,data TEXT,created REAL);
-        CREATE TABLE IF NOT EXISTS calls(session TEXT,id TEXT,status TEXT,result TEXT,PRIMARY KEY(session,id));
-        CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY,session TEXT,kind TEXT,data TEXT,decision TEXT DEFAULT 'pending');
-        """)
-        self.db.commit()
+        if url.drivername not in {"sqlite", "mysql+pymysql"}:
+            raise ValueError("Use sqlite or mysql+pymysql for the database URL")
+        self.backend = url.get_backend_name()
+        kwargs = {"pool_pre_ping": True, "hide_parameters": True}
+        if self.backend == "sqlite":
+            kwargs["connect_args"] = {"check_same_thread": False, "timeout": 30}
+        else:
+            kwargs.update(
+                pool_size=5, max_overflow=5, pool_timeout=10, pool_recycle=1800
+            )
+            kwargs["connect_args"] = {
+                "connect_timeout": 5,
+                "read_timeout": 30,
+                "write_timeout": 30,
+            }
+        self.engine = create_engine(url, **kwargs)
+        if self.backend == "sqlite":
 
-    def create(self, root, task, max_steps=20):
+            @event.listens_for(self.engine, "connect")
+            def sqlite_settings(dbapi_connection, _):
+                dbapi_connection.execute("PRAGMA busy_timeout=30000")
+
+        config = Config()
+        config.set_main_option(
+            "script_location", str(Path(__file__).parent / "migrations")
+        )
+        with self.engine.begin() as conn:
+            config.attributes["connection"] = conn
+            command.upgrade(config, "head")
+        legacy = self.directory / "sessions.db"
+        if database_url is None and legacy.exists():
+            from .storage_migration import import_legacy
+
+            import_legacy(self, legacy)
+
+    def close(self):
+        self.engine.dispose()
+
+    @contextmanager
+    def transaction(self):
+        with self.engine.connect() as conn:
+            if self.backend == "sqlite":
+                conn.exec_driver_sql("BEGIN IMMEDIATE")
+            else:
+                conn.begin()
+            try:
+                yield conn
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
+
+    def _lock_session(self, conn, sid):
+        row = conn.execute(
+            select(t.sessions.c.id).where(t.sessions.c.id == sid).with_for_update()
+        ).first()
+        if row is None:
+            raise KeyError("Unknown session")
+
+    def create(
+        self,
+        root,
+        task,
+        max_steps=20,
+        *,
+        constraints=None,
+        acceptance_criteria=None,
+        semantic_requirements=False,
+    ):
         s = dict(
             id=uuid.uuid4().hex,
             root=str(Path(root).resolve()),
@@ -40,119 +116,385 @@ class Store:
             revision=0,
             test_revision=-1,
             compression_count=0,
+            semantic_requirements_enabled=semantic_requirements,
         )
-        self.save(s)
-        self.event(s["id"], "created", {"task": task})
+        protect_requirements(s, constraints, acceptance_criteria)
+        with self.transaction() as conn:
+            version = self._save(conn, s)
+            self._event(conn, s["id"], "created", {"task": task})
+        s["_store_version"] = version
         return s
 
-    def save(self, session):
-        with self.lock, self.db:
-            self.db.execute(
-                "INSERT OR REPLACE INTO sessions VALUES(?,?)",
-                (session["id"], json.dumps(session, ensure_ascii=False)),
+    def _save(self, conn, session):
+        data = {
+            k: v for k, v in session.items() if k not in {"messages", "_store_version"}
+        }
+        now = time.time()
+        expected = session.get("_store_version")
+        if expected is None:
+            version = 1
+            try:
+                conn.execute(
+                    insert(t.sessions).values(
+                        id=session["id"],
+                        status=session["status"],
+                        version=version,
+                        data=data,
+                        created=now,
+                        updated=now,
+                    )
+                )
+            except IntegrityError:
+                raise StoreConflict("Session exists; reload before saving") from None
+        else:
+            version = expected + 1
+            changed = conn.execute(
+                update(t.sessions)
+                .where(
+                    t.sessions.c.id == session["id"], t.sessions.c.version == expected
+                )
+                .values(
+                    status=session["status"], version=version, data=data, updated=now
+                )
+            ).rowcount
+            if changed != 1:
+                raise StoreConflict(
+                    "Session changed concurrently; reload before continuing"
+                )
+        old = (
+            conn.execute(
+                select(t.messages.c.data)
+                .where(t.messages.c.session == session["id"])
+                .order_by(t.messages.c.seq)
             )
+            .scalars()
+            .all()
+        )
+        incoming = session["messages"]
+        common = 0
+        while common < min(len(old), len(incoming)) and old[common] == incoming[common]:
+            common += 1
+        if common < len(old):
+            conn.execute(
+                delete(t.messages).where(
+                    t.messages.c.session == session["id"], t.messages.c.seq >= common
+                )
+            )
+        if common < len(incoming):
+            conn.execute(
+                insert(t.messages),
+                [
+                    dict(session=session["id"], seq=i, data=incoming[i])
+                    for i in range(common, len(incoming))
+                ],
+            )
+        return version
+
+    def save(self, session):
+        with self.transaction() as conn:
+            version = self._save(conn, session)
+        session["_store_version"] = version
 
     def get(self, sid):
-        with self.lock:
-            row = self.db.execute(
-                "SELECT data FROM sessions WHERE id=?", (sid,)
-            ).fetchone()
-        if not row:
-            raise KeyError("Unknown session")
-        return json.loads(row[0])
+        # Brief parent lock keeps state and messages on the same committed version.
+        with self.transaction() as conn:
+            self._lock_session(conn, sid)
+            row = (
+                conn.execute(select(t.sessions).where(t.sessions.c.id == sid))
+                .mappings()
+                .one()
+            )
+            s = copy.deepcopy(row["data"])
+            s["_store_version"] = row["version"]
+            s["messages"] = (
+                conn.execute(
+                    select(t.messages.c.data)
+                    .where(t.messages.c.session == sid)
+                    .order_by(t.messages.c.seq)
+                )
+                .scalars()
+                .all()
+            )
+            return s
 
     def sessions(self):
-        with self.lock:
-            return [
-                json.loads(r[0])
-                for r in self.db.execute(
-                    "SELECT data FROM sessions ORDER BY rowid DESC LIMIT 100"
+        with self.engine.connect() as conn:
+            ids = (
+                conn.execute(
+                    select(t.sessions.c.id)
+                    .order_by(t.sessions.c.created.desc())
+                    .limit(100)
                 )
-            ]
+                .scalars()
+                .all()
+            )
+        return [self.get(sid) for sid in ids]
+
+    def _event(self, conn, sid, kind, data):
+        conn.execute(
+            insert(t.events).values(
+                session=sid, kind=kind, data=data, created=time.time()
+            )
+        )
 
     def event(self, sid, kind, data):
-        with self.lock, self.db:
-            self.db.execute(
-                "INSERT INTO events(session,kind,data,created) VALUES(?,?,?,?)",
-                (sid, kind, json.dumps(data, ensure_ascii=False), time.time()),
-            )
+        with self.transaction() as conn:
+            self._event(conn, sid, kind, data)
 
     def events(self, sid, after=0, limit=100000):
-        with self.lock:
+        with self.engine.connect() as conn:
             return [
-                dict(r, data=json.loads(r["data"]))
-                for r in self.db.execute(
-                    "SELECT * FROM events WHERE session=? AND id>? ORDER BY id LIMIT ?",
-                    (sid, after, limit),
-                )
+                dict(r)
+                for r in conn.execute(
+                    select(t.events)
+                    .where(t.events.c.session == sid, t.events.c.id > after)
+                    .order_by(t.events.c.id)
+                    .limit(limit)
+                ).mappings()
             ]
 
     def approval(self, sid, kind, data, aid=None):
         aid = aid or uuid.uuid4().hex
-        with self.lock, self.db:
-            self.db.execute(
-                "INSERT OR IGNORE INTO approvals(id,session,kind,data) VALUES(?,?,?,?)",
-                (aid, sid, kind, json.dumps(data, ensure_ascii=False)),
+        with self.transaction() as conn:
+            self._lock_session(conn, sid)
+            old = (
+                conn.execute(select(t.approvals).where(t.approvals.c.id == aid))
+                .mappings()
+                .first()
             )
+            if old:
+                if old["session"] != sid or old["kind"] != kind or old["data"] != data:
+                    raise ValueError("Approval ID already binds different content")
+            else:
+                conn.execute(
+                    insert(t.approvals).values(
+                        id=aid, session=sid, kind=kind, data=data, created=time.time()
+                    )
+                )
         return aid
 
     def approvals(self, sid):
-        with self.lock:
+        with self.engine.connect() as conn:
             return [
-                dict(r, data=json.loads(r["data"]))
-                for r in self.db.execute(
-                    "SELECT * FROM approvals WHERE session=? ORDER BY rowid", (sid,)
-                )
+                dict(r)
+                for r in conn.execute(
+                    select(t.approvals)
+                    .where(t.approvals.c.session == sid)
+                    .order_by(t.approvals.c.created, t.approvals.c.id)
+                ).mappings()
             ]
 
-    def resolve(self, sid, aid, allow):
-        with self.lock, self.db:
-            n = self.db.execute(
-                "UPDATE approvals SET decision=? WHERE id=? AND session=? AND decision='pending'",
-                ("allow" if allow else "deny", aid, sid),
+    def ensure_test_approval(self, sid, call_id, spec):
+        legacy = hashlib.md5(
+            (sid + call_id).encode(), usedforsecurity=False
+        ).hexdigest()
+        with self.transaction() as conn:
+            self._lock_session(conn, sid)
+            rows = (
+                conn.execute(
+                    select(t.approvals)
+                    .where(t.approvals.c.session == sid, t.approvals.c.kind == "tests")
+                    .order_by(t.approvals.c.created.desc(), t.approvals.c.id.desc())
+                    .with_for_update()
+                )
+                .mappings()
+                .all()
+            )
+            related = [
+                r
+                for r in rows
+                if r["id"] == legacy or r["data"].get("call_id") == call_id
+            ]
+            if related:
+                if any(r["decision"] == "consumed" for r in related):
+                    raise ValueError(
+                        "This tool call already consumed its test authorization; use a new call ID for a reviewed retry"
+                    )
+                row = related[0]
+                if row["data"].get("spec") == spec and row["decision"] != "stale":
+                    return row["id"]
+                conn.execute(
+                    update(t.approvals)
+                    .where(
+                        t.approvals.c.id.in_([r["id"] for r in related]),
+                        t.approvals.c.decision.in_(["pending", "allow"]),
+                    )
+                    .values(decision="stale")
+                )
+            aid = uuid.uuid4().hex
+            data = dict(
+                call_id=call_id,
+                spec=spec,
+                spec_sha256=digest(spec),
+                runner=spec["runner"],
+                backend=spec["backend"],
+                command=spec["command"],
+                warning="Approval binds this exact execution specification. trusted-local is not a sandbox.",
+                supersedes=related[0]["id"] if related else None,
+            )
+            conn.execute(
+                insert(t.approvals).values(
+                    id=aid, session=sid, kind="tests", data=data, created=time.time()
+                )
+            )
+        return aid
+
+    def consume_test_approval(self, sid, aid, spec):
+        with self.transaction() as conn:
+            try:
+                self._lock_session(conn, sid)
+            except KeyError:
+                raise ValueError("Test approval unavailable in this session") from None
+            row = (
+                conn.execute(
+                    select(t.approvals)
+                    .where(
+                        t.approvals.c.id == aid,
+                        t.approvals.c.session == sid,
+                        t.approvals.c.kind == "tests",
+                        t.approvals.c.decision == "allow",
+                    )
+                    .with_for_update()
+                )
+                .mappings()
+                .first()
+            )
+            data = row["data"] if row else {}
+            if data.get("spec") != spec or data.get("spec_sha256") != digest(spec):
+                raise ValueError(
+                    "Test approval unavailable, changed, or already consumed"
+                )
+            changed = conn.execute(
+                update(t.approvals)
+                .where(
+                    t.approvals.c.id == aid,
+                    t.approvals.c.session == sid,
+                    t.approvals.c.decision == "allow",
+                )
+                .values(decision="consumed")
             ).rowcount
-        if n != 1:
-            raise ValueError("Approval missing or already decided")
-        self.event(sid, "approval_decided", {"id": aid, "allowed": allow})
+            if changed != 1:
+                raise ValueError(
+                    "Test approval was concurrently consumed or invalidated"
+                )
+
+    def resolve(self, sid, aid, allow):
+        with self.transaction() as conn:
+            self._lock_session(conn, sid)
+            n = conn.execute(
+                update(t.approvals)
+                .where(
+                    t.approvals.c.id == aid,
+                    t.approvals.c.session == sid,
+                    t.approvals.c.decision == "pending",
+                )
+                .values(decision="allow" if allow else "deny")
+            ).rowcount
+            if n != 1:
+                raise ValueError("Approval missing or already decided")
+            self._event(conn, sid, "approval_decided", {"id": aid, "allowed": allow})
 
     def call(self, sid, cid):
-        with self.lock:
-            row = self.db.execute(
-                "SELECT * FROM calls WHERE session=? AND id=?", (sid, cid)
-            ).fetchone()
-        return dict(row) if row else None
+        with self.engine.connect() as conn:
+            row = (
+                conn.execute(
+                    select(t.calls).where(t.calls.c.session == sid, t.calls.c.id == cid)
+                )
+                .mappings()
+                .first()
+            )
+        return (
+            dict(row, result=json.dumps(row["result"], ensure_ascii=False))
+            if row
+            else None
+        )
+
+    def _put_call(self, conn, sid, cid, status, result=None):
+        where = (t.calls.c.session == sid, t.calls.c.id == cid)
+        old = conn.execute(select(t.calls.c.status).where(*where)).scalar_one_or_none()
+        if old is None:
+            conn.execute(
+                insert(t.calls).values(
+                    session=sid, id=cid, status=status, result=result
+                )
+            )
+        else:
+            if old == "done" and status != "done":
+                raise StoreConflict("Completed tool call cannot be restarted")
+            conn.execute(
+                update(t.calls).where(*where).values(status=status, result=result)
+            )
 
     def put_call(self, sid, cid, status, result=None):
-        with self.lock, self.db:
-            self.db.execute(
-                "INSERT OR REPLACE INTO calls VALUES(?,?,?,?)",
-                (sid, cid, status, json.dumps(result, ensure_ascii=False)),
+        with self.transaction() as conn:
+            self._lock_session(conn, sid)
+            self._put_call(conn, sid, cid, status, result)
+
+    def complete_call(self, session, cid, name, result):
+        """Commit result, message, notes/revision and event together; no external I/O inside."""
+        candidate = copy.deepcopy(session)
+        if name == "apply_edit" and result.get("status") == "applied":
+            candidate["revision"] += 1
+            candidate["verification"] = "not_run"
+        if name == "run_tests":
+            candidate["verification"] = result.get("status", "error")
+            candidate["test_revision"] = candidate["revision"]
+        candidate["messages"].append(
+            dict(
+                role="tool",
+                tool_call_id=cid,
+                content=json.dumps(result, ensure_ascii=False),
             )
+        )
+        with self.transaction() as conn:
+            version = self._save(conn, candidate)
+            self._put_call(conn, session["id"], cid, "done", result)
+            self._event(
+                conn,
+                session["id"],
+                "tool_result",
+                dict(id=cid, tool=name, result=result),
+            )
+        candidate["_store_version"] = version
+        session.clear()
+        session.update(candidate)
+
+    def wait_for_approval(self, session, cid, name, aid):
+        candidate = copy.deepcopy(session)
+        candidate.update(status="waiting_approval", pending_approval=aid)
+        with self.transaction() as conn:
+            version = self._save(conn, candidate)
+            self._put_call(conn, session["id"], cid, "waiting")
+            self._event(
+                conn, session["id"], "approval_required", dict(id=aid, tool=name)
+            )
+        candidate["_store_version"] = version
+        session.clear()
+        session.update(candidate)
 
     def artifact(self, text, sid):
         aid = uuid.uuid4().hex
-        folder = self.directory / "artifacts"
-        folder.mkdir(exist_ok=True)
-        (folder / (aid + ".txt")).write_text(text, encoding="utf-8")
-        with self.lock, self.db:
-            self.db.execute("INSERT INTO artifacts VALUES(?,?)", (aid, sid))
+        with self.transaction() as conn:
+            conn.execute(insert(t.artifacts).values(id=aid, session=sid, content=text))
         return aid
 
     def artifact_owner(self, aid):
-        with self.lock:
-            row = self.db.execute(
-                "SELECT session FROM artifacts WHERE id=?", (aid,)
-            ).fetchone()
-        return row[0] if row else None
+        with self.engine.connect() as conn:
+            return conn.execute(
+                select(t.artifacts.c.session).where(t.artifacts.c.id == aid)
+            ).scalar_one_or_none()
 
     def read_artifact(self, aid, offset=0):
         if len(aid) != 32 or any(x not in "0123456789abcdef" for x in aid):
             raise ValueError("Invalid artifact ID")
-        text = (self.directory / "artifacts" / (aid + ".txt")).read_text(
-            encoding="utf-8"
+        with self.engine.connect() as conn:
+            text = conn.execute(
+                select(t.artifacts.c.content).where(t.artifacts.c.id == aid)
+            ).scalar_one_or_none()
+        if text is None:
+            raise KeyError("Unknown artifact")
+        return dict(
+            text=text[offset : offset + 4000],
+            next_offset=min(len(text), offset + 4000),
+            total_chars=len(text),
         )
-        return {
-            "text": text[offset : offset + 4000],
-            "next_offset": min(len(text), offset + 4000),
-            "total_chars": len(text),
-        }

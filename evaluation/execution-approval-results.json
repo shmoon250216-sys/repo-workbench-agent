@@ -1,0 +1,16 @@
+{
+  "mode": "offline_execution_approval_regression",
+  "full_suite": {
+    "total": 98,
+    "passed": 97,
+    "skipped": 1,
+    "skip_reason": "Windows symlink privilege"
+  },
+  "new_cases": 17,
+  "offline_scenarios": {
+    "total": 8,
+    "passed": 8
+  },
+  "docker_execution": "mocked identities only; no real container run",
+  "guarantee": "exact spec comparison and single authorization claim; not immutable workspace or multi-process scheduler"
+}

@@ -1,0 +1,73 @@
+{
+  "backend": "mysql",
+  "host": "127.0.0.1",
+  "port": 3308,
+  "database": "repo_workbench",
+  "sources": [
+    {
+      "source": ".runtime\\learn-20260922-203633-state\\sessions.db",
+      "counts": {
+        "sessions": 0,
+        "calls": 0,
+        "approvals": 0,
+        "events": 0,
+        "artifacts": 0
+      },
+      "verified_sessions": 0
+    },
+    {
+      "source": ".runtime\\live-stream-check\\sessions.db",
+      "counts": {
+        "sessions": 1,
+        "calls": 1,
+        "approvals": 0,
+        "events": 19,
+        "artifacts": 0
+      },
+      "verified_sessions": 1
+    },
+    {
+      "source": ".runtime\\ui\\sessions.db",
+      "counts": {
+        "sessions": 1,
+        "calls": 6,
+        "approvals": 2,
+        "events": 27,
+        "artifacts": 0
+      },
+      "verified_sessions": 1
+    },
+    {
+      "source": ".runtime\\live-acceptance-01\\state\\sessions.db",
+      "counts": {
+        "sessions": 2,
+        "calls": 22,
+        "approvals": 5,
+        "events": 80,
+        "artifacts": 0
+      },
+      "verified_sessions": 2
+    },
+    {
+      "source": ".runtime\\ui-v2-test\\state\\sessions.db",
+      "counts": {
+        "sessions": 1,
+        "calls": 6,
+        "approvals": 2,
+        "events": 81,
+        "artifacts": 0
+      },
+      "verified_sessions": 1
+    }
+  ],
+  "counts": {
+    "sessions": 5,
+    "messages": 69,
+    "events": 207,
+    "calls": 35,
+    "approvals": 9,
+    "artifacts": 0,
+    "legacy_imports": 5
+  },
+  "verified": true
+}

@@ -3,7 +3,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import signal
 import subprocess
 import tempfile
@@ -12,7 +11,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .execution import build_plan, digest
 from .policy import Denied, Policy
+from .task_state import task_state
 
 
 class ApprovalNeeded(Exception):
@@ -65,7 +66,16 @@ class Artifact(Args):
     offset: int = Field(default=0, ge=0)
 
 
+class UserRequest(Args):
+    source: str = Field(pattern=r"^(initial|message:[0-9]+)$")
+    offset: int = Field(default=0, ge=0)
+
+
 SPECS = {
+    "read_user_request": (
+        UserRequest,
+        "Read the original user requirement by source ID in this session; use when an extracted requirement is unclear. Returns up to 3000 characters.",
+    ),
     "list_files": (Empty, "List permitted repository files."),
     "read_file": (Read, "Read a bounded range with line numbers."),
     "search_code": (
@@ -158,7 +168,15 @@ class Tools:
             return {
                 **{
                     k: result[k]
-                    for k in ("status", "exit_code", "backend", "proposal_id", "path")
+                    for k in (
+                        "status",
+                        "exit_code",
+                        "backend",
+                        "proposal_id",
+                        "path",
+                        "approval_id",
+                        "execution_spec_sha256",
+                    )
                     if k in result
                 },
                 "preview": text[:1800],
@@ -170,6 +188,21 @@ class Tools:
 
     def list_files(self, **_):
         return {"files": self.policy.files()}
+
+    def read_user_request(self, source, offset=0, **_):
+        record = next(
+            (r for r in task_state(self.session)["requests"] if r["source"] == source),
+            None,
+        )
+        if record is None:
+            raise ValueError("Unknown user source in this session")
+        text = record["text"]
+        return {
+            "source": source,
+            "text": text[offset : offset + 3000],
+            "next_offset": min(len(text), offset + 3000),
+            "total_chars": len(text),
+        }
 
     def read_file(self, path, start, lines, **_):
         p = self.policy.path(path)
@@ -266,7 +299,9 @@ class Tools:
         if row["decision"] == "pending":
             raise ApprovalNeeded(aid)
         if row["decision"] != "allow":
-            raise Denied("Human rejected this action; choose another approach")
+            raise Denied(
+                "Approval is rejected, stale, or already consumed; a new action requires a new review"
+            )
         return row["data"]
 
     def apply_edit(self, proposal_id, **_):
@@ -302,73 +337,54 @@ class Tools:
             raise Denied(
                 "Test execution disabled. Operator must configure docker or trusted-local backend; do not claim verification passed"
             )
-        aid = hashlib.md5(
-            (self.session["id"] + call_id).encode(), usedforsecurity=False
-        ).hexdigest()
-        command = (
-            [self.python, "-I", "-m", "unittest", "discover", "-s", "tests", "-v"]
-            if runner == "unittest"
-            else [self.python, "-I", "-m", "pytest", "-q", "-p", "no:cacheprovider"]
-        )
-        self.store.approval(
+        plan = build_plan(
+            self.policy.root,
+            self.store.directory,
             self.session["id"],
-            "tests",
-            {
-                "runner": runner,
-                "backend": self.backend,
-                "command": command,
-                "warning": "Tests execute repository code. trusted-local is not a sandbox.",
-            },
-            aid,
+            call_id,
+            runner,
+            self.backend,
+            self.python,
         )
-        self._approved(aid, "tests")
-        env = {
-            k: v
-            for k, v in os.environ.items()
-            if k in {"SystemRoot", "WINDIR", "PATH", "TEMP", "TMP", "LANG"}
-        }
-        env.update(PYTHONIOENCODING="utf-8", PYTEST_DISABLE_PLUGIN_AUTOLOAD="1")
-        cname = "repo-agent-" + aid
-        if self.backend == "docker":
-            if not shutil.which("docker"):
-                raise Denied("Docker unavailable; no fallback to host execution")
-            if runner != "unittest":
-                raise Denied(
-                    "Default Docker image supports unittest only; build a pinned test image before enabling pytest"
-                )
-            command = [
-                "docker",
-                "run",
-                "--rm",
-                "--name",
-                cname,
-                "--network=none",
-                "--read-only",
-                "--cap-drop=ALL",
-                "--security-opt=no-new-privileges",
-                "--memory=256m",
-                "--cpus=1",
-                "--pids-limit=64",
-                "--user=65534:65534",
-                "--tmpfs",
-                "/tmp:rw,noexec,nosuid,size=32m",
-                "-v",
-                str(self.policy.root) + ":/workspace:ro",
-                "-w",
-                "/workspace",
-                "python:3.12-slim",
-                "python",
-                "-I",
-                "-B",
-                "-m",
-                "unittest",
-                "discover",
-                "-s",
-                "tests",
-                "-v",
-            ]
-        elif self.backend != "trusted-local":
-            raise Denied("Unknown execution backend")
+        try:
+            aid = self.store.ensure_test_approval(
+                self.session["id"], call_id, plan.spec
+            )
+        except ValueError as exc:
+            raise Denied(str(exc)) from None
+        approved = self._approved(aid, "tests")
+        # Recheck source, command and runtime after approval, immediately before use.
+        checked = build_plan(
+            self.policy.root,
+            self.store.directory,
+            self.session["id"],
+            call_id,
+            runner,
+            self.backend,
+            self.python,
+        )
+        if checked.spec != approved["spec"]:
+            aid = self.store.ensure_test_approval(
+                self.session["id"], call_id, checked.spec
+            )
+            raise ApprovalNeeded(aid)
+        try:
+            self.store.consume_test_approval(self.session["id"], aid, checked.spec)
+        except ValueError as exc:
+            raise Denied(str(exc)) from None
+        command = approved["spec"]["command"]
+        env = checked.env
+        cname = checked.spec["container_name"]
+        self.store.event(
+            self.session["id"],
+            "execution_authorized",
+            {
+                "approval_id": aid,
+                "spec_sha256": digest(checked.spec),
+                "workspace_sha256": checked.spec["snapshot"]["sha256"],
+                "backend": checked.spec["backend"],
+            },
+        )
         with tempfile.TemporaryFile() as output:
             proc = subprocess.Popen(
                 command,
@@ -381,11 +397,14 @@ class Tools:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             try:
-                code = proc.wait(timeout=30)
+                code = proc.wait(timeout=checked.spec["timeout_seconds"])
             except subprocess.TimeoutExpired:
                 if self.backend == "docker":
                     subprocess.run(
-                        ["docker", "rm", "-f", cname], capture_output=True, timeout=10
+                        [command[0], "rm", "-f", cname],
+                        capture_output=True,
+                        timeout=10,
+                        env=env,
                     )
                 if os.name == "nt":
                     subprocess.run(
@@ -395,7 +414,13 @@ class Tools:
                 else:
                     os.killpg(proc.pid, signal.SIGKILL)
                 proc.wait(timeout=5)
-                return {"status": "timeout", "exit_code": None, "backend": self.backend}
+                return {
+                    "status": "timeout",
+                    "exit_code": None,
+                    "backend": self.backend,
+                    "approval_id": aid,
+                    "execution_spec_sha256": digest(checked.spec),
+                }
             output.seek(0)
             raw = output.read(100000).decode("utf-8", errors="replace")
         return {
@@ -409,6 +434,8 @@ class Tools:
             "exit_code": code,
             "output": raw,
             "backend": self.backend,
+            "approval_id": aid,
+            "execution_spec_sha256": digest(checked.spec),
         }
 
     def show_diff(self, **_):

@@ -1,11 +1,13 @@
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from .demo import ScriptedDemo, create_fixture
 from .engine import Engine
 from .provider import ChatProvider
+from .requirements import configured_extractor
 from .store import Store
 
 
@@ -62,7 +64,8 @@ def main():
         )
         uvicorn.run(app, host="127.0.0.1", port=a.port)
         return
-    store = Store(a.state)
+    store = Store(a.state, database_url=os.getenv("REPO_AGENT_DATABASE_URL"))
+    extractor = None if a.demo else configured_extractor()
     if a.command == "show":
         print(json.dumps(store.get(a.session), ensure_ascii=False, indent=2))
         return
@@ -73,13 +76,21 @@ def main():
     if a.command == "run":
         if not 1 <= a.max_steps <= 40 or not a.task.strip():
             p.error("max-steps must be 1..40 and task must be nonempty")
-        s = store.create(a.workspace, a.task, a.max_steps)
+        s = store.create(
+            a.workspace,
+            a.task,
+            a.max_steps,
+            semantic_requirements=extractor is not None,
+        )
     else:
         s = store.get(a.session)
         if s["root"] != str(Path(a.workspace).resolve()):
             p.error("Resume workspace differs from saved session")
     engine = Engine(
-        store, ScriptedDemo() if a.demo else ChatProvider(), backend=a.backend
+        store,
+        ScriptedDemo() if a.demo else ChatProvider(),
+        backend=a.backend,
+        extractor=extractor,
     )
     if a.command == "follow-up":
         engine.follow_up(s["id"], a.task)

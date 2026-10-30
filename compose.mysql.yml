@@ -1,0 +1,20 @@
+services:
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3309}:3306"
+    environment:
+      MYSQL_DATABASE: repo_workbench
+      MYSQL_USER: repo_agent
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set a local database password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set a root password}
+    volumes:
+      - workbench_mysql:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  workbench_mysql:

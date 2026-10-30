@@ -4,6 +4,8 @@ import time
 
 from .context import assemble
 from .provider import ProviderError
+from .store import StoreConflict
+from .task_state import protect_requirements
 from .tools import ApprovalNeeded, Tools
 
 
@@ -17,6 +19,7 @@ class Engine:
         context_budget=18000,
         max_tokens=50000,
         deadline=180,
+        extractor=None,
     ):
         self.store = store
         self.provider = provider
@@ -24,6 +27,7 @@ class Engine:
         self.context_budget = context_budget
         self.max_tokens = max_tokens
         self.deadline = deadline
+        self.extractor = extractor
         self.locks = {}
         self.guard = threading.Lock()
         self.cancellations = {}
@@ -48,8 +52,17 @@ class Engine:
                 event.set()
         return {"status": "stop_requested"}
 
-    def follow_up(self, sid, text, max_steps=20):
-        if not text.strip() or len(text) > 4000 or not 1 <= max_steps <= 40:
+    def follow_up(
+        self,
+        sid,
+        text,
+        max_steps=20,
+        *,
+        constraints=None,
+        acceptance_criteria=None,
+        origin="user",
+    ):
+        if not text.strip() or len(text) > 16000 or not 1 <= max_steps <= 40:
             raise ValueError("Invalid follow-up")
         with self.guard:
             root = self.store.get(sid)["root"]
@@ -58,9 +71,18 @@ class Engine:
             raise ValueError("Workspace is running")
         try:
             s = self.store.get(sid)
+            if self.extractor:
+                s["semantic_requirements_enabled"] = True
             if s["status"] in {"waiting_approval", "running"}:
                 raise ValueError("Resolve current turn before adding a follow-up")
-            s["messages"].append({"role": "user", "content": text})
+            if origin not in {"user", "approval_notice"}:
+                raise ValueError("Invalid follow-up origin")
+            message = {"role": "user", "content": text}
+            if origin == "approval_notice":
+                message["origin"] = origin
+            s["messages"].append(message)
+            if origin == "user":
+                protect_requirements(s, constraints, acceptance_criteria)
             s["status"] = "ready"
             s["final"] = ""
             s["max_steps"] = s["steps"] + max_steps
@@ -80,10 +102,24 @@ class Engine:
         }:
             return s
         tools = Tools(self.store, s, backend=self.backend)
+        s["requirement_projection_enabled"] = self.extractor is not None
         s["status"] = "running"
         self.store.save(s)
         started = time.monotonic()
         try:
+            # Upgrade old sessions from full, untrimmed user history before execution.
+            try:
+                if self.extractor:
+                    s["semantic_requirements_enabled"] = True
+                protect_requirements(s)
+            except ValueError as exc:
+                raise ProviderError(str(exc)) from exc
+            if self.extractor:
+                report = self.extractor.prepare(s, s["task_state"])
+                s["requirements_status"] = report
+                s["usage_tokens"] += report["usage_tokens"]
+                self.store.event(sid, "requirements", report)
+            self.store.save(s)
             while True:
                 if self.cancellations.get(sid, threading.Event()).is_set():
                     s["status"] = "stopped"
@@ -123,37 +159,14 @@ class Engine:
                             arguments = json.loads(call["function"]["arguments"])
                             result = tools.call(name, arguments, cid)
                         except ApprovalNeeded as exc:
-                            self.store.put_call(sid, cid, "waiting")
-                            s["status"] = "waiting_approval"
-                            s["pending_approval"] = exc.aid
-                            self.store.event(
-                                sid, "approval_required", {"id": exc.aid, "tool": name}
-                            )
-                            self.store.save(s)
+                            self.store.wait_for_approval(s, cid, name, exc.aid)
                             return s
                         except Exception as exc:
                             result = {
                                 "error": str(exc)[:500],
                                 "type": type(exc).__name__,
                             }
-                        self.store.put_call(sid, cid, "done", result)
-                    if name == "apply_edit" and result.get("status") == "applied":
-                        s["revision"] += 1
-                        s["verification"] = "not_run"
-                    if name == "run_tests":
-                        s["verification"] = result.get("status", "error")
-                        s["test_revision"] = s["revision"]
-                    s["messages"].append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": cid,
-                            "content": json.dumps(result, ensure_ascii=False),
-                        }
-                    )
-                    self.store.event(
-                        sid, "tool_result", {"id": cid, "tool": name, "result": result}
-                    )
-                    self.store.save(s)
+                    self.store.complete_call(s, cid, name, result)
                     if "error" in result:
                         signature = name + call["function"]["arguments"]
                         s["repeat_errors"] = (
@@ -236,6 +249,7 @@ class Engine:
                     if (
                         not isinstance(c.get("id"), str)
                         or not c["id"]
+                        or len(c["id"]) > 255
                         or c["id"] in known
                     ):
                         raise ProviderError("Duplicate or invalid tool call ID")
@@ -272,6 +286,9 @@ class Engine:
                     )
                     s["final"] = assistant["content"]
                     break
+        except StoreConflict:
+            # Never overwrite the winner using the stale in-memory session.
+            raise
         except ProviderError as exc:
             s["status"] = "provider_error"
             s["final"] = str(exc)
