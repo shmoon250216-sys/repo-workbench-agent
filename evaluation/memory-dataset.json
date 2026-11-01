@@ -1,0 +1,220 @@
+{
+  "lessons": [
+    {
+      "id": "async",
+      "data": {
+        "summary": "同步SDK阻塞事件循环",
+        "failure": "同步SDK阻塞事件循环",
+        "remedy": "将阻塞调用卸载到工作线程，保持异步服务响应",
+        "applicability": "仅适用于线程安全SDK，CPU密集计算应另行处理"
+      }
+    },
+    {
+      "id": "approval",
+      "data": {
+        "summary": "审批后的文件被外部修改",
+        "failure": "审批后的文件被外部修改",
+        "remedy": "应用补丁前重新核对SHA256，失效时读取文件并重新提出修改",
+        "applicability": "针对过期修改提案，不重复提交旧补丁"
+      }
+    },
+    {
+      "id": "parser",
+      "data": {
+        "summary": "空项直接转整数导致异常",
+        "failure": "空项直接转整数导致异常",
+        "remedy": "去除首尾空白并过滤空项后再执行int转换",
+        "applicability": "仅适用于业务允许忽略空项的列表解析"
+      }
+    },
+    {
+      "id": "retry",
+      "data": {
+        "summary": "远端请求触发429限流",
+        "failure": "远端请求触发429限流",
+        "remedy": "尊重Retry-After并采用有界退避重试",
+        "applicability": "仅重试暂时性故障，不重试401鉴权错误"
+      }
+    },
+    {
+      "id": "secret",
+      "data": {
+        "summary": "日志意外输出访问凭据",
+        "failure": "日志意外输出访问凭据",
+        "remedy": "日志过滤Authorization和API密钥，使用占位信息定位故障",
+        "applicability": "凭据不得进入审计输出"
+      }
+    },
+    {
+      "id": "transaction",
+      "data": {
+        "summary": "进程中断导致工具结果与对话记录不一致",
+        "failure": "进程中断导致工具结果与对话记录不一致",
+        "remedy": "工具完成记录和消息追加在同一数据库事务提交",
+        "applicability": "数据库内写入可原子提交，外部副作用需独立恢复策略"
+      }
+    },
+    {
+      "id": "stale",
+      "data": {
+        "summary": "测试通过后代码又发生变化",
+        "failure": "测试通过后代码又发生变化",
+        "remedy": "最终完成前核对测试时工作区指纹，变化后使旧测试结果失效",
+        "applicability": "不能用旧版本的测试结果证明新代码正确"
+      }
+    },
+    {
+      "id": "path",
+      "data": {
+        "summary": "工具路径跳出允许的工作区",
+        "failure": "工具路径跳出允许的工作区",
+        "remedy": "解析规范路径并检查是否处于授权根目录内，拒绝越界及危险链接",
+        "applicability": "适用于文件读取与修改工具"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "query": "访问第三方服务时其他请求也被卡住了",
+      "relevant": [
+        "async"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "同步SDK阻塞事件循环",
+      "relevant": [
+        "async"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "批准以后有人又改了代码，不能覆盖他的新内容",
+      "relevant": [
+        "approval"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "审批后文件变化SHA256",
+      "relevant": [
+        "approval"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "连续两个逗号之间没有数字，转换就崩了，允许跳过空项",
+      "relevant": [
+        "parser"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "parser空项整数转换",
+      "relevant": [
+        "parser"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "接口说调用太频繁了，不能立即反复请求",
+      "relevant": [
+        "retry"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "429 Retry-After退避",
+      "relevant": [
+        "retry"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "排查接口时把令牌打印出来了，需要防止泄露",
+      "relevant": [
+        "secret"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "Authorization日志密钥",
+      "relevant": [
+        "secret"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "突然断电后结果保存了但是聊天里没有，需要一起提交",
+      "relevant": [
+        "transaction"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "数据库事务工具结果消息",
+      "relevant": [
+        "transaction"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "刚跑绿了但文件随后被改了，还能说验证成功吗",
+      "relevant": [
+        "stale"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "测试通过代码变化指纹",
+      "relevant": [
+        "stale"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "有人给读取工具传了../../private，我要限制访问范围",
+      "relevant": [
+        "path"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "路径工作区越界",
+      "relevant": [
+        "path"
+      ],
+      "type": "positive"
+    },
+    {
+      "query": "请推荐周末的旅游景点",
+      "relevant": [],
+      "type": "unrelated"
+    },
+    {
+      "query": "今天晚饭怎么做红烧鱼",
+      "relevant": [],
+      "type": "unrelated"
+    },
+    {
+      "query": "帮我写一首关于月亮的诗",
+      "relevant": [],
+      "type": "unrelated"
+    },
+    {
+      "query": "安排下周的健身计划",
+      "relevant": [],
+      "type": "unrelated"
+    },
+    {
+      "query": "整数解析遇到空项必须报错，严禁忽略空项",
+      "relevant": [],
+      "type": "conflicting"
+    },
+    {
+      "query": "同步SDK线程不安全，不允许移到线程池中运行",
+      "relevant": [],
+      "type": "conflicting"
+    }
+  ]
+}

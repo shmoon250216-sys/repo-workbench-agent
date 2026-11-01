@@ -1,0 +1,799 @@
+{
+  "scope": "Synthetic 8-lesson/22-query fixture, real local BGE embedding. No LLM applicability judge, no task-success claim. Fixed cosine floor 0.6, RRF k=60. Not a held-out production benchmark.",
+  "model": "BAAI/bge-small-zh-v1.5",
+  "metrics": {
+    "legacy": {
+      "recall_at_3": 0.625,
+      "precision_at_3": 0.5208333333333334,
+      "unrelated_rejected": 4,
+      "unrelated_total": 4,
+      "conflicting_injected": 2,
+      "conflicting_total": 2
+    },
+    "bm25": {
+      "recall_at_3": 0.8125,
+      "precision_at_3": 0.4895833333333333,
+      "unrelated_rejected": 4,
+      "unrelated_total": 4,
+      "conflicting_injected": 2,
+      "conflicting_total": 2
+    },
+    "hybrid": {
+      "recall_at_3": 1.0,
+      "precision_at_3": 0.6041666666666666,
+      "unrelated_rejected": 4,
+      "unrelated_total": 4,
+      "conflicting_injected": 2,
+      "conflicting_total": 2
+    }
+  },
+  "results": [
+    {
+      "query": "访问第三方服务时其他请求也被卡住了",
+      "relevant": [
+        "async"
+      ],
+      "type": "positive",
+      "legacy": [
+        "retry",
+        "secret"
+      ],
+      "bm25": [
+        "retry",
+        "secret",
+        "async"
+      ],
+      "hybrid": [
+        "retry",
+        "secret",
+        "async"
+      ],
+      "milliseconds": 709.23,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "retry",
+            "bm25": 2.69164714237697,
+            "cosine": 0.5435765354856538,
+            "rrf": 0.01639344262295082
+          },
+          {
+            "id": "secret",
+            "bm25": 2.6176838593256218,
+            "cosine": 0.5497848665594884,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "async",
+            "bm25": 1.867269750681965,
+            "cosine": 0.5091101011452994,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "同步SDK阻塞事件循环",
+      "relevant": [
+        "async"
+      ],
+      "type": "positive",
+      "legacy": [
+        "async"
+      ],
+      "bm25": [
+        "async"
+      ],
+      "hybrid": [
+        "async"
+      ],
+      "milliseconds": 2.7,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "async",
+            "bm25": 18.423719096087428,
+            "cosine": 0.8015888205067935,
+            "rrf": 0.03278688524590164
+          }
+        ]
+      }
+    },
+    {
+      "query": "批准以后有人又改了代码，不能覆盖他的新内容",
+      "relevant": [
+        "approval"
+      ],
+      "type": "positive",
+      "legacy": [
+        "stale"
+      ],
+      "bm25": [
+        "stale"
+      ],
+      "hybrid": [
+        "stale",
+        "approval"
+      ],
+      "milliseconds": 2.85,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "stale",
+            "bm25": 4.405641252100911,
+            "cosine": 0.6408708956824455,
+            "rrf": 0.03252247488101534
+          },
+          {
+            "id": "approval",
+            "bm25": 0.0,
+            "cosine": 0.6544321405251539,
+            "rrf": 0.01639344262295082
+          }
+        ]
+      }
+    },
+    {
+      "query": "审批后文件变化SHA256",
+      "relevant": [
+        "approval"
+      ],
+      "type": "positive",
+      "legacy": [
+        "approval"
+      ],
+      "bm25": [
+        "approval",
+        "stale",
+        "path"
+      ],
+      "hybrid": [
+        "approval",
+        "stale",
+        "path"
+      ],
+      "milliseconds": 2.15,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "approval",
+            "bm25": 8.656474732140605,
+            "cosine": 0.7470406105310049,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "stale",
+            "bm25": 2.723064653090756,
+            "cosine": 0.6004294917312465,
+            "rrf": 0.03225806451612903
+          },
+          {
+            "id": "path",
+            "bm25": 1.2378609412371966,
+            "cosine": 0.5010687894629616,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "连续两个逗号之间没有数字，转换就崩了，允许跳过空项",
+      "relevant": [
+        "parser"
+      ],
+      "type": "positive",
+      "legacy": [
+        "parser",
+        "path"
+      ],
+      "bm25": [
+        "parser",
+        "path"
+      ],
+      "hybrid": [
+        "parser",
+        "path"
+      ],
+      "milliseconds": 3.08,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "parser",
+            "bm25": 6.183901598921294,
+            "cosine": 0.5953049210400015,
+            "rrf": 0.01639344262295082
+          },
+          {
+            "id": "path",
+            "bm25": 1.720134273636702,
+            "cosine": 0.5492449156303936,
+            "rrf": 0.016129032258064516
+          }
+        ]
+      }
+    },
+    {
+      "query": "parser空项整数转换",
+      "relevant": [
+        "parser"
+      ],
+      "type": "positive",
+      "legacy": [
+        "parser"
+      ],
+      "bm25": [
+        "parser"
+      ],
+      "hybrid": [
+        "parser"
+      ],
+      "milliseconds": 2.16,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "parser",
+            "bm25": 7.373973765398178,
+            "cosine": 0.7271691991378508,
+            "rrf": 0.03278688524590164
+          }
+        ]
+      }
+    },
+    {
+      "query": "接口说调用太频繁了，不能立即反复请求",
+      "relevant": [
+        "retry"
+      ],
+      "type": "positive",
+      "legacy": [
+        "retry",
+        "stale"
+      ],
+      "bm25": [
+        "retry",
+        "async",
+        "stale"
+      ],
+      "hybrid": [
+        "retry",
+        "async",
+        "stale"
+      ],
+      "milliseconds": 4.11,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "retry",
+            "bm25": 2.69164714237697,
+            "cosine": 0.5940964491397849,
+            "rrf": 0.01639344262295082
+          },
+          {
+            "id": "async",
+            "bm25": 1.867269750681965,
+            "cosine": 0.5796907202329242,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "stale",
+            "bm25": 1.6825765990101547,
+            "cosine": 0.5643296537892735,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "429 Retry-After退避",
+      "relevant": [
+        "retry"
+      ],
+      "type": "positive",
+      "legacy": [
+        "retry"
+      ],
+      "bm25": [
+        "retry"
+      ],
+      "hybrid": [
+        "retry"
+      ],
+      "milliseconds": 2.12,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "retry",
+            "bm25": 8.822193485070029,
+            "cosine": 0.6663761155335847,
+            "rrf": 0.03278688524590164
+          }
+        ]
+      }
+    },
+    {
+      "query": "排查接口时把令牌打印出来了，需要防止泄露",
+      "relevant": [
+        "secret"
+      ],
+      "type": "positive",
+      "legacy": [],
+      "bm25": [],
+      "hybrid": [
+        "secret"
+      ],
+      "milliseconds": 2.87,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "secret",
+            "bm25": 0.0,
+            "cosine": 0.6043553240351874,
+            "rrf": 0.01639344262295082
+          }
+        ]
+      }
+    },
+    {
+      "query": "Authorization日志密钥",
+      "relevant": [
+        "secret"
+      ],
+      "type": "positive",
+      "legacy": [
+        "secret"
+      ],
+      "bm25": [
+        "secret"
+      ],
+      "hybrid": [
+        "secret"
+      ],
+      "milliseconds": 2.19,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "secret",
+            "bm25": 6.8666611109106785,
+            "cosine": 0.6625024328089254,
+            "rrf": 0.03278688524590164
+          }
+        ]
+      }
+    },
+    {
+      "query": "突然断电后结果保存了但是聊天里没有，需要一起提交",
+      "relevant": [
+        "transaction"
+      ],
+      "type": "positive",
+      "legacy": [],
+      "bm25": [
+        "transaction",
+        "stale",
+        "approval"
+      ],
+      "hybrid": [
+        "transaction",
+        "stale",
+        "approval"
+      ],
+      "milliseconds": 3.4,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "transaction",
+            "bm25": 3.1830021164743796,
+            "cosine": 0.6428559033999675,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "stale",
+            "bm25": 1.6860651813591852,
+            "cosine": 0.5072418833441271,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "approval",
+            "bm25": 1.2654626717324202,
+            "cosine": 0.5742328822809531,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "数据库事务工具结果消息",
+      "relevant": [
+        "transaction"
+      ],
+      "type": "positive",
+      "legacy": [
+        "transaction"
+      ],
+      "bm25": [
+        "transaction",
+        "path",
+        "stale"
+      ],
+      "hybrid": [
+        "transaction",
+        "path",
+        "stale"
+      ],
+      "milliseconds": 2.51,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "transaction",
+            "bm25": 14.784846901688056,
+            "cosine": 0.6474662390424532,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "path",
+            "bm25": 1.9768645220241827,
+            "cosine": 0.4852657290410316,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "stale",
+            "bm25": 1.6860651813591852,
+            "cosine": 0.4737593904745465,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "刚跑绿了但文件随后被改了，还能说验证成功吗",
+      "relevant": [
+        "stale"
+      ],
+      "type": "positive",
+      "legacy": [],
+      "bm25": [
+        "approval",
+        "path"
+      ],
+      "hybrid": [
+        "approval",
+        "path",
+        "stale"
+      ],
+      "milliseconds": 3.89,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "approval",
+            "bm25": 2.0000876001096355,
+            "cosine": 0.6472020284742207,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "path",
+            "bm25": 1.2378609412371966,
+            "cosine": 0.5214619563175924,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "stale",
+            "bm25": 0.0,
+            "cosine": 0.6123562668044147,
+            "rrf": 0.016129032258064516
+          }
+        ]
+      }
+    },
+    {
+      "query": "测试通过代码变化指纹",
+      "relevant": [
+        "stale"
+      ],
+      "type": "positive",
+      "legacy": [
+        "stale"
+      ],
+      "bm25": [
+        "stale"
+      ],
+      "hybrid": [
+        "stale"
+      ],
+      "milliseconds": 2.14,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "stale",
+            "bm25": 14.952992318528487,
+            "cosine": 0.7830814287874268,
+            "rrf": 0.03278688524590164
+          }
+        ]
+      }
+    },
+    {
+      "query": "有人给读取工具传了../../private，我要限制访问范围",
+      "relevant": [
+        "path"
+      ],
+      "type": "positive",
+      "legacy": [
+        "secret"
+      ],
+      "bm25": [
+        "path",
+        "secret",
+        "transaction"
+      ],
+      "hybrid": [
+        "path",
+        "secret",
+        "transaction"
+      ],
+      "milliseconds": 2.98,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "path",
+            "bm25": 3.214725463261379,
+            "cosine": 0.639920802667353,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "secret",
+            "bm25": 2.6176838593256218,
+            "cosine": 0.5759468479987743,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "transaction",
+            "bm25": 1.8615849508081936,
+            "cosine": 0.533713458897925,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "路径工作区越界",
+      "relevant": [
+        "path"
+      ],
+      "type": "positive",
+      "legacy": [
+        "async",
+        "stale",
+        "path"
+      ],
+      "bm25": [
+        "path",
+        "stale",
+        "async"
+      ],
+      "hybrid": [
+        "path",
+        "stale",
+        "async"
+      ],
+      "milliseconds": 2.21,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "path",
+            "bm25": 7.485159219639686,
+            "cosine": 0.6639310615426147,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "stale",
+            "bm25": 2.0897884896162204,
+            "cosine": 0.3420396943482179,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "async",
+            "bm25": 0.9842641398896818,
+            "cosine": 0.4254004045559115,
+            "rrf": 0.015873015873015872
+          }
+        ]
+      }
+    },
+    {
+      "query": "请推荐周末的旅游景点",
+      "relevant": [],
+      "type": "unrelated",
+      "legacy": [],
+      "bm25": [],
+      "hybrid": [],
+      "milliseconds": 2.17,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": []
+      }
+    },
+    {
+      "query": "今天晚饭怎么做红烧鱼",
+      "relevant": [],
+      "type": "unrelated",
+      "legacy": [],
+      "bm25": [],
+      "hybrid": [],
+      "milliseconds": 2.08,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": []
+      }
+    },
+    {
+      "query": "帮我写一首关于月亮的诗",
+      "relevant": [],
+      "type": "unrelated",
+      "legacy": [],
+      "bm25": [],
+      "hybrid": [],
+      "milliseconds": 2.59,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": []
+      }
+    },
+    {
+      "query": "安排下周的健身计划",
+      "relevant": [],
+      "type": "unrelated",
+      "legacy": [],
+      "bm25": [],
+      "hybrid": [],
+      "milliseconds": 2.08,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": []
+      }
+    },
+    {
+      "query": "整数解析遇到空项必须报错，严禁忽略空项",
+      "relevant": [],
+      "type": "conflicting",
+      "legacy": [
+        "parser",
+        "path"
+      ],
+      "bm25": [
+        "parser",
+        "path"
+      ],
+      "hybrid": [
+        "parser",
+        "path",
+        "retry"
+      ],
+      "milliseconds": 2.97,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "parser",
+            "bm25": 10.50256989494222,
+            "cosine": 0.7421245951416636,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "path",
+            "bm25": 1.2378609412371966,
+            "cosine": 0.5265929323700745,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "retry",
+            "bm25": 0.0,
+            "cosine": 0.6247574492947569,
+            "rrf": 0.016129032258064516
+          }
+        ]
+      }
+    },
+    {
+      "query": "同步SDK线程不安全，不允许移到线程池中运行",
+      "relevant": [],
+      "type": "conflicting",
+      "legacy": [
+        "async"
+      ],
+      "bm25": [
+        "async",
+        "path",
+        "parser"
+      ],
+      "hybrid": [
+        "async",
+        "path",
+        "retry"
+      ],
+      "milliseconds": 2.69,
+      "diagnostics": {
+        "mode": "hybrid_rrf",
+        "candidates": 8,
+        "embedding_error": null,
+        "selected": [
+          {
+            "id": "async",
+            "bm25": 9.812068179941043,
+            "cosine": 0.739603346986429,
+            "rrf": 0.03278688524590164
+          },
+          {
+            "id": "path",
+            "bm25": 1.720134273636702,
+            "cosine": 0.5511069941786141,
+            "rrf": 0.016129032258064516
+          },
+          {
+            "id": "retry",
+            "bm25": 0.0,
+            "cosine": 0.6153781030110574,
+            "rrf": 0.016129032258064516
+          }
+        ]
+      }
+    }
+  ]
+}

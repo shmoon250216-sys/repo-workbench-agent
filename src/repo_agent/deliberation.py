@@ -99,8 +99,10 @@ class Deliberation:
             s["recalled_lessons"] = store.recall_lessons(
                 s["root"], request, exclude=s["id"]
             )
+            s["memory_retrieval"] = store.last_memory_retrieval
         else:
             s["recalled_lessons"] = []
+            s["memory_retrieval"] = {"mode": "disabled"}
         if s.get("agent_mode", "react") != "plan_execute":
             return
         if s.get("plan", {}).get("request_hash") == source:

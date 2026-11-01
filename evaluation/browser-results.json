@@ -11,6 +11,8 @@
     "reload_session_and_login",
     "session_search",
     "mobile_no_overflow",
+    "memory_preference_persists",
+    "new_task_memory_off",
     "logout"
   ],
   "firstDelta": "正在读取当前代码",

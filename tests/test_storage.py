@@ -62,6 +62,20 @@ class StorageContract:
         self.assertTrue(other.delete_lesson(self.base, lessons[0]["id"]))
         self.assertEqual(self.store.recall_lessons(self.base, "parser"), [])
 
+    def test_memory_vector_cache_survives_reconnect(self):
+        self.store.save_lesson(self.s, dict(summary="parser"))
+        with patch.object(
+            self.store.memory_retriever.embedding, "embed", return_value=[[1.0, 0.0]]
+        ):
+            self.store.recall_lessons(self.base, "parser")
+        other = self.open_store()
+        with patch.object(
+            other.memory_retriever.embedding, "embed", return_value=[[1.0, 0.0]]
+        ) as embed:
+            found = other.recall_lessons(self.base, "parser")
+        self.assertEqual(embed.call_count, 1)
+        self.assertNotIn("_embedding", found[0])
+
     def parallel(self, fn):
         other = self.open_store()
         barrier = threading.Barrier(2)

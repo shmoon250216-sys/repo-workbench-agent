@@ -29,6 +29,11 @@ from .store import Store
 from .task_state import requirement_list
 
 
+class MemoryPreference(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    enabled: bool
+
+
 class NewTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task: str = Field(min_length=1, max_length=16000, pattern=r"\S")
@@ -346,6 +351,19 @@ def create_app(
                 result = schedule(sid, tasks, resume=True)
                 return {**result, "auto_resumed": True}
         return {"status": "recorded", "auto_resumed": False}
+
+    @app.post("/api/sessions/{sid}/memory", dependencies=[Depends(auth)])
+    def memory_preference(sid: str, body: MemoryPreference):
+        with guard:
+            s = session(sid)
+            if jobs["owner"] is not None or s["status"] == "running":
+                raise HTTPException(409, "执行中不能切换经验设置，请等待暂停或结束")
+            s["learning_enabled"] = body.enabled
+            s["recalled_lessons"] = []
+            s["memory_retrieval"] = {"mode": "pending" if body.enabled else "disabled"}
+            store.save(s)
+            store.event(sid, "memory_preference", {"enabled": body.enabled})
+        return {"enabled": body.enabled}
 
     @app.delete("/api/lessons/{lid}", dependencies=[Depends(auth)])
     def delete_lesson(lid: str):

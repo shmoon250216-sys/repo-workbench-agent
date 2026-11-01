@@ -25,6 +25,10 @@ class StoreConflict(ValueError):
 
 class Store:
     def __init__(self, directory, database_url=None):
+        from .memory_retrieval import HybridMemory
+
+        self.memory_retriever = HybridMemory()
+        self.last_memory_retrieval = {}
         self.directory = Path(directory).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
         url = (
@@ -103,9 +107,6 @@ class Store:
                 conn.execute(delete(t.lessons).where(t.lessons.c.id.in_(stale)))
 
     def recall_lessons(self, root, query, exclude=None):
-        from .deliberation import terms
-
-        tokens = terms(query)
         with self.engine.connect() as conn:
             rows = (
                 conn.execute(
@@ -120,21 +121,38 @@ class Store:
                 .mappings()
                 .all()
             )
-        ranked = []
-        for row in rows:
-            if row["session"] == exclude:
-                continue
-            score = len(tokens & terms(json.dumps(row["data"], ensure_ascii=False)))
-            if score:
-                ranked.append(
-                    (
-                        score,
-                        dict(
-                            id=row["id"], source_session=row["session"], **row["data"]
-                        ),
-                    )
+        rows = [dict(row) for row in rows if row["session"] != exclude]
+
+        def save_cache(row, cache):
+            data = dict(row["data"], _embedding=cache)
+            with self.transaction() as conn:
+                conn.execute(
+                    update(t.lessons)
+                    .where(t.lessons.c.id == row["id"])
+                    .values(data=data)
                 )
-        return [item for _, item in sorted(ranked, key=lambda pair: -pair[0])[:3]]
+
+        selected, self.last_memory_retrieval = self.memory_retriever.rank(
+            query, rows, save_cache
+        )
+        with self.engine.connect() as conn:
+            valid = set(
+                conn.execute(
+                    select(t.lessons.c.id).where(
+                        t.lessons.c.id.in_([r["id"] for r in selected]),
+                        t.lessons.c.expires > time.time(),
+                    )
+                ).scalars()
+            )
+        return [
+            dict(
+                id=r["id"],
+                source_session=r["session"],
+                **{k: v for k, v in r["data"].items() if not k.startswith("_")},
+            )
+            for r in selected
+            if r["id"] in valid
+        ]
 
     def delete_lesson(self, root, lid):
         with self.transaction() as conn:
